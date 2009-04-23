@@ -165,7 +165,7 @@ int main(int argc, char **argv)
   uid_len=sizeof(uid);
   uid=0;
   if(rfid_layer2_getopt(l2h,RFID_OPT_LAYER2_UID,&uid,&uid_len)>=0)
-    printf("UID=%08X (len=%u)\n",uid,uid_len);
+    printf("UID=%08X\n",uid);
   fflush(stdout);
 
 //  rfid_layer2_close(l2h);
