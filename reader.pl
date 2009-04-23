@@ -16,7 +16,7 @@ while (<$keys>)
 
 while (sleep 1)
 {
-  open $fh,'/flash/realraum/a.out 0 2>&1 |';
+  open $fh,'/flash/realraum/mifare-read 0 2>&1 |';
   while (<$fh>)
   {
 	next unless /UID/;
