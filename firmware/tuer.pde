@@ -109,7 +109,7 @@ void start_debounce_timer()  // this breaks millis() function, but who cares
   debounce_cnt = DEBOUNCE_DELAY;
 
   TCCR0A = 0;         // no prescaler, WGM = 0 (normal)
-  TCCR0B = 1<<WGM01;  // 
+  TCCR0B = 1<<CS00;   // 
   OCR0A = 255;        // 1+255 = 256 -> 16us @ 16 MHz
   TCNT0 = 0;          // reseting timer
   TIMSK0 = 1<<OCF0A;  // enable Interrupt
