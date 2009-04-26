@@ -22,6 +22,13 @@ byte next_led = 0;
 
 #define MANUAL_OPEN_PIN 12  // keys for manual open and close
 #define MANUAL_CLOSE_PIN 13 // 
+#define DEBOUNCE_DELAY 625  // * 16us = 10ms
+#define DEBOUNCE_IDLE 0     // currently no debouncing
+#define DEBOUNCE_OPEN 1     // debouncing open key
+#define DEBOUNCE_CLOSE 2    // debouncing close key
+#define DEBOUNCE_FINISHED 4 // debouncing finished
+byte debounce_state;
+int debounce_cnt = 0;
 
 #define IDLE 0      // close and open may be called
 #define OPENING 1   // opening, only 's' command is allowed
@@ -76,9 +83,12 @@ void init_manual()
 
   pinMode(MANUAL_CLOSE_PIN, INPUT);     // set pin to input
   digitalWrite(MANUAL_CLOSE_PIN, HIGH); // turn on pullup resistors  
+
+  debounce_state = DEBOUNCE_IDLE;
+  debounce_cnt = DEBOUNCE_DELAY;
 }
 
-boolean manual_open()
+boolean manual_open_pressed()
 {
   if(digitalRead(MANUAL_OPEN_PIN))
      return false;
@@ -86,12 +96,98 @@ boolean manual_open()
   return true;
 }
 
-boolean manual_close()
+boolean manual_close_pressed()
 {
   if(digitalRead(MANUAL_CLOSE_PIN))
      return false;
      
   return true;
+}
+
+void start_debounce_timer()  // this breaks millis() function, but who cares
+{
+  debounce_cnt = DEBOUNCE_DELAY;
+
+  TCCR0A = 0;         // no prescaler, WGM = 0 (normal)
+  TCCR0B = 1<<WGM01;  // 
+  OCR0A = 255;        // 1+255 = 256 -> 16us @ 16 MHz
+  TCNT0 = 0;          // reseting timer
+  TIMSK0 = 1<<OCF0A;  // enable Interrupt
+
+}
+
+void stop_debounce_timer()
+{
+  // timer0
+  TCCR0B = 0; // no clock source
+  TIMSK0 = 0; // disable timer interrupt
+}
+
+ISR(TIMER0_COMPA_vect)
+{
+  if((debounce_state & DEBOUNCE_OPEN && manual_open_pressed()) ||
+     (debounce_state & DEBOUNCE_CLOSE && manual_close_pressed())) {
+    if(debounce_cnt) {
+      debounce_cnt--;
+      return;
+    }
+    debounce_state |= DEBOUNCE_FINISHED;
+  }
+  debounce_cnt = DEBOUNCE_DELAY;
+}
+
+boolean manual_open()
+{
+  if(manual_open_pressed()) {
+    if(debounce_state & DEBOUNCE_CLOSE) {
+      stop_debounce_timer();
+      debounce_state = DEBOUNCE_IDLE;
+      return false;
+    }
+
+    if(debounce_state == DEBOUNCE_IDLE) {
+      debounce_state = DEBOUNCE_OPEN;
+      start_debounce_timer();
+    }
+    else if(debounce_state & DEBOUNCE_FINISHED) {
+      stop_debounce_timer();
+      debounce_state = DEBOUNCE_IDLE;
+      return true;
+    }
+  }
+  else {
+    stop_debounce_timer();
+    debounce_state = DEBOUNCE_IDLE;
+  }
+
+  return false;
+}
+
+boolean manual_close()
+{
+  if(manual_close_pressed()) {
+    if(debounce_state & DEBOUNCE_OPEN) {
+      stop_debounce_timer();
+      debounce_state = DEBOUNCE_IDLE;
+      return false;
+    }
+
+    if(debounce_state == DEBOUNCE_IDLE) {
+      debounce_state = DEBOUNCE_CLOSE;
+      start_debounce_timer();
+    }
+    else if(debounce_state & DEBOUNCE_FINISHED) {
+      stop_debounce_timer();
+      debounce_state = DEBOUNCE_IDLE;
+      return true;
+    }
+  }
+  else {
+    stop_debounce_timer();
+    debounce_state = DEBOUNCE_IDLE;
+  }
+
+  return false;
 }
 
 //********************************************************************//
