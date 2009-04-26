@@ -132,6 +132,11 @@ ISR(TIMER0_COMPA_vect)
       return;
     }
     debounce_state |= DEBOUNCE_FINISHED;
+
+    if(digitalRead(HEARTBEAT_PIN))
+      digitalWrite(HEARTBEAT_PIN, LOW);
+    else
+      digitalWrite(HEARTBEAT_PIN, HIGH);
   }
   debounce_cnt = DEBOUNCE_DELAY;
 }
@@ -413,11 +418,13 @@ void init_heartbeat()
   pinMode(HEARTBEAT_PIN, OUTPUT);
   reset_heartbeat();
   // timer 2: ~10 ms, timebase for heartbeat signal
+/*
   TCCR2A = 1<<WGM21;                    // prescaler 1:1024, WGM = 2 (CTC)
   TCCR2B = 1<<CS22 | 1<<CS21 | 1<<CS20; // 
   OCR2A = 155;        // (1+155)*1024 = 159744 -> ~10 ms @ 16 MHz
   TCNT2 = 0;          // reseting timer
   TIMSK2 = 1<<OCIE2A; // enable Interrupt
+*/
   heartbeat_on();
 }
 
