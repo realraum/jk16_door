@@ -22,7 +22,7 @@ byte next_led = 0;
 
 #define MANUAL_OPEN_PIN 12  // keys for manual open and close
 #define MANUAL_CLOSE_PIN 13 // 
-#define DEBOUNCE_DELAY 625  // * 16us = 10ms
+#define DEBOUNCE_DELAY 6250  // * 16us = 100ms
 #define DEBOUNCE_IDLE 0     // currently no debouncing
 #define DEBOUNCE_OPEN 1     // debouncing open key
 #define DEBOUNCE_CLOSE 2    // debouncing close key
@@ -125,18 +125,13 @@ void stop_debounce_timer()
 
 ISR(TIMER0_COMPA_vect)
 {
-  if((debounce_state & DEBOUNCE_OPEN && manual_open_pressed()) ||
-     (debounce_state & DEBOUNCE_CLOSE && manual_close_pressed())) {
+  if(((debounce_state & DEBOUNCE_OPEN) && manual_open_pressed()) ||
+     ((debounce_state & DEBOUNCE_CLOSE) && manual_close_pressed())) {
     if(debounce_cnt) {
       debounce_cnt--;
       return;
     }
     debounce_state |= DEBOUNCE_FINISHED;
-
-    if(digitalRead(HEARTBEAT_PIN))
-      digitalWrite(HEARTBEAT_PIN, LOW);
-    else
-      digitalWrite(HEARTBEAT_PIN, HIGH);
   }
   debounce_cnt = DEBOUNCE_DELAY;
 }
@@ -160,7 +155,7 @@ boolean manual_open()
       return true;
     }
   }
-  else {
+  else if(debounce_state & DEBOUNCE_OPEN) {
     stop_debounce_timer();
     debounce_state = DEBOUNCE_IDLE;
   }
@@ -187,7 +182,7 @@ boolean manual_close()
       return true;
     }
   }
-  else {
+  else if(debounce_state & DEBOUNCE_CLOSE) {
     stop_debounce_timer();
     debounce_state = DEBOUNCE_IDLE;
   }
@@ -418,13 +413,11 @@ void init_heartbeat()
   pinMode(HEARTBEAT_PIN, OUTPUT);
   reset_heartbeat();
   // timer 2: ~10 ms, timebase for heartbeat signal
-/*
   TCCR2A = 1<<WGM21;                    // prescaler 1:1024, WGM = 2 (CTC)
   TCCR2B = 1<<CS22 | 1<<CS21 | 1<<CS20; // 
   OCR2A = 155;        // (1+155)*1024 = 159744 -> ~10 ms @ 16 MHz
   TCNT2 = 0;          // reseting timer
   TIMSK2 = 1<<OCIE2A; // enable Interrupt
-*/
   heartbeat_on();
 }
 
