@@ -1,45 +1,45 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 use strict;
 my $fh;
+my $fifofile = "/tmp/door_cmd.fifo";
 
 my $keys;
 my %good;
-my $status = 'c';
 
 open $keys,'/flash/realraum/keys';
 while (<$keys>)
 {
-	my ($code,$comment) = split /\s/,$_,2;
-	$good{$code}=$comment;
+	if ($_ =~ /([0-9A-Fa-f]{8})\s(\S+)/)
+	{
+		$good{$1}=$2;
+ 	}
 }
 
+sub send_to_fifo
+{
+	if( -p $fifofile)
+	{
+		open(my $fifo,"> $fifofile");
+		print $fifo shift(@_)."\n";
+		close($fifo);  
+	}
+}
 
 while (sleep 1)
 {
-  open $fh,'/flash/realraum/mifare-read 0 2>&1 |';
-  while (<$fh>)
-  {
-	next unless /UID/;
-	my ($id) = /UID=(\S+)\s+/;
-	if ($good{$id})
+	open $fh,'/flash/realraum/mifare-read 0 2>&1 |';
+	while (<$fh>)
 	{
-		my $newstat;
-		if ($status eq 'o')
+		next unless /UID/;
+		my ($id) = /UID=(\S+)\s+/;
+		if ($good{$id})
 		{
-			$newstat='c';
-
+			send_to_fifo("toggle Card ".$good{$id});
 		} else {
-			$newstat = 'o';
+			send_to_fifo("log InvalidCard $id");
 		}
-		print "$newstat: $good{$id}";
-		system ( "echo -n $newstat > /dev/ttyUSB0");
-		$status = $newstat;
-	} else {
-		print "boese\n";
 	}
-  }
-
 }
 
 ###############################################################
