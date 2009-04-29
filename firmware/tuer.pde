@@ -454,32 +454,20 @@ void reset_after_error()
 
 void start_open()
 {
-  if(is_opened()) {
-    Serial.println("Already open");
-    return;
-  }
-
   reset_stepper();
   reset_leds();
   leds_green();
   current_state = OPENING;
   start_step_timer();
-  Serial.println("Ok");
 }
 
 void start_close()
 {
-  if(is_closed()) {
-    Serial.println("Already closed");
-    return;
-  }
-    
   reset_stepper();
   reset_leds();
   leds_red();
   current_state = CLOSING;
   start_step_timer();
-  Serial.println("Ok");
 }
 
 void print_status()
@@ -537,14 +525,26 @@ void loop()
       reset_after_error();
     }
     else if (command == CMD_OPEN) {
-      if(current_state == IDLE) 
-        start_open();
+      if(current_state == IDLE) {
+	if(is_opened())
+	  Serial.println("Already open");
+        else {
+          start_open();
+          Serial.println("Ok");
+        }
+      }
       else
         Serial.println("Error: Operation in progress");
     }
     else if (command == CMD_CLOSE) {
-      if(current_state == IDLE) 
-        start_close();
+      if(current_state == IDLE) {
+	if(is_closed())
+	  Serial.println("Already closed");
+        else {
+          start_close();
+          Serial.println("Ok");
+        }
+      }
       else
         Serial.println("Error: Operation in progress");
     }
