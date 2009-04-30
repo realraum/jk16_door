@@ -519,7 +519,7 @@ void loop()
     char command = Serial.read();
 
     if(current_state == ERROR && command != CMD_RESET) {
-      Serial.println("Error: last open/close operation took to long!");
+      Serial.println("Error: last open/close operation took too long!");
     }
     else if (command == CMD_RESET) {
       reset_after_error();
