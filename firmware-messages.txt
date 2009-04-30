@@ -1,0 +1,44 @@
+###############################################################
+/dev/ttyUSB0: door key printer
+
+
+ Messages:
+
+  manual open key pressed:
+   open forced manually
+
+  manual close key pressed:
+   close forced manually
+
+  closing or opening finished
+   Status: closed|opened, idle
+
+  closing or opening timeout:
+   Error: open/close took too long!
+
+ commands:
+  c ... close
+   response: "Ok", "Already closed", "Error: .*"
+  o ... open
+   response: "Ok", "Already opened", "Error: .*"
+  s ... status
+   response: "Status: closed|opened|<->, opening|waiting|closing|idle"
+         or  "Error: .*"
+  r ... reset
+   "Ok, closing now" or "Error: .*"
+  * ... everything else
+   Error: unknown command
+
+ open/close  will only be accepted if Status: ..., idle
+             otherwise response: Error: Operation in progress
+
+ unless error case s will always be accepted
+
+ Reset overrules all other operations in progress
+
+ if an error occured every command besides r gets ingnored and
+   Error: last open/close operation took too long!
+ is sent in response
+
+###############################################################
+

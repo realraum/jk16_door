@@ -53,36 +53,5 @@ while (sleep 1)
 #
 #
 ###############################################################
-# /dev/ttyUSB0: door key printer
-#
-#
-#   Ok
-#   Ok, closing now
-#   Already closed
-#   Already opened
-#   close forced manually\nOk
-#   open forced manually\nOk
-#   Error: .*
-#   .* be: unknown command
-#          Operation in progress
-#          open/close took too long!
-#          last open/close operation took to long!
-#
-# commands:
-#  c ... close
-#   response: "Ok", "Already closed", "Error: .*"
-#  o ... open
-#   response: "Ok", "Already opened", "Error: .*"
-#  s ... status
-#   response: "Status: closed|opened|<->, opening|waiting|closing|idle"
-#         or  "Error: .*"
-#  r ... reset
-#   "Ok, closing now" or "Error: .*"
-#
-# open/close  will only be accepted if Status: ..., idle
-# Reset overrules all other operations in progress
-# s will always be accepted
-#
-###############################################################
 #
 #
