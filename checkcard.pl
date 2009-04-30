@@ -1,8 +1,13 @@
 #!/usr/bin/perl -w
 
+use Socket;
 use strict;
 my $fh;
-my $fifofile = "/tmp/door_cmd.fifo";
+#my $fifofile = "/tmp/door_cmd.fifo";
+
+my $socketfile = "/tmp/door_cmd.socket";
+exit(1) unless (-S $socketfile);
+my $socketaddr = sockaddr_un($socketfile);
 
 my $keys;
 my %good;
@@ -18,12 +23,10 @@ while (<$keys>)
 
 sub send_to_fifo
 {
-	if( -p $fifofile)
-	{
-		open(my $fifo,"> $fifofile");
-		print $fifo shift(@_)."\n";
-		close($fifo);  
-	}
+	socket(my $conn, PF_UNIX, SOCK_STREAM,0) || die "socket: $!";
+	connect($conn, $socketaddr) || die "socket connect: $!";
+	print $conn shift(@_)."\n";
+	close($conn);
 }
 
 while (sleep 1)
