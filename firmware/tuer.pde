@@ -359,6 +359,12 @@ ISR(TIMER1_COMPA_vect)
     stop_timer();
     reset_stepper();
     current_state = IDLE;
+    Serial.print("Status: ");
+    if(is_opened())
+      Serial.print("opened");
+    else if(is_closed())
+      Serial.print("closed");
+    Serial.println(", idle");
     return;
   }
   else if(current_state == ERROR) {
