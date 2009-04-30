@@ -26,6 +26,8 @@ EXECUTABLE := door_daemon
 
 OBJ := log.o \
       sig_handler.o \
+      options.o \
+      string_list.o \
       door_daemon.o
 
 
@@ -56,7 +58,6 @@ distclean: clean
 	find . -name *.o -exec rm -f {} \;
 	find . -name "*.\~*" -exec rm -rf {} \;
 	rm -f include.mk
-	rm -f tun.c
 
 clean:
 	rm -f *.o

@@ -29,7 +29,7 @@
 
 #include "log.h"
 #include "sig_handler.h"
-//#include "options.h"
+#include "options.h"
 
 #include "daemon.h"
 #include "sysexec.h"
@@ -56,6 +56,7 @@ int process_ttyusb(int ttyusb_fd)
   int ret = 0;
   do {
     ret = read(ttyusb_fd, buffer, sizeof(buffer));
+    if(!ret) return -1;
   } while (ret == -1 && errno == EINTR);
 
   return 0;
@@ -133,69 +134,61 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
 int main(int argc, char* argv[])
 {
   log_init();
-  int ret = 0;
 
-/*   options_t opt; */
-/*   int ret = options_parse(&opt, argc, argv); */
-/*   if(ret) { */
-/*     if(ret > 0) { */
-/*       fprintf(stderr, "syntax error near: %s\n\n", argv[ret]); */
-/*     } */
-/*     if(ret == -2) { */
-/*       fprintf(stderr, "memory error on options_parse, exitting\n"); */
-/*     } */
-/*     if(ret == -3) { */
-/*       fprintf(stderr, "syntax error: -4 and -6 are mutual exclusive\n\n"); */
-/*     } */
-/*     if(ret == -4) { */
-/*       fprintf(stderr, "syntax error: unknown role name\n\n"); */
-/*     } */
+  options_t opt;
+  int ret = options_parse(&opt, argc, argv);
+  if(ret) {
+    if(ret > 0) {
+      fprintf(stderr, "syntax error near: %s\n\n", argv[ret]);
+    }
+    if(ret == -2) {
+      fprintf(stderr, "memory error on options_parse, exitting\n");
+    }
 
-/*     if(ret != -2)  */
-/*       options_print_usage(); */
+    if(ret != -2)
+      options_print_usage();
 
-/*     options_clear(&opt); */
-/*     log_close(); */
-/*     exit(ret); */
-/*   } */
-/*   string_list_element_t* tmp = opt.log_targets_.first_; */
-/*   if(!tmp) { */
-/*     log_add_target("syslog:3,door_daemon,daemon"); */
-/*   } */
-/*   else { */
-/*     while(tmp) { */
-/*       ret = log_add_target(tmp->string_); */
-/*       if(ret) { */
-/*         switch(ret) { */
-/*         case -2: fprintf(stderr, "memory error on log_add_target, exitting\n"); break; */
-/*         case -3: fprintf(stderr, "unknown log target: '%s', exitting\n", tmp->string_); break; */
-/*         case -4: fprintf(stderr, "this log target is only allowed once: '%s', exitting\n", tmp->string_); break; */
-/*         default: fprintf(stderr, "syntax error near: '%s', exitting\n", tmp->string_); break; */
-/*         } */
+    options_clear(&opt);
+    log_close();
+    exit(ret);
+  }
+  string_list_element_t* tmp = opt.log_targets_.first_;
+  if(!tmp) {
+    log_add_target("syslog:3,door_daemon,daemon");
+  }
+  else {
+    while(tmp) {
+      ret = log_add_target(tmp->string_);
+      if(ret) {
+        switch(ret) {
+        case -2: fprintf(stderr, "memory error on log_add_target, exitting\n"); break;
+        case -3: fprintf(stderr, "unknown log target: '%s', exitting\n", tmp->string_); break;
+        case -4: fprintf(stderr, "this log target is only allowed once: '%s', exitting\n", tmp->string_); break;
+        default: fprintf(stderr, "syntax error near: '%s', exitting\n", tmp->string_); break;
+        }
         
-/*         options_clear(&opt); */
-/*         log_close(); */
-/*         exit(ret); */
-/*       } */
-/*       tmp = tmp->next_; */
-/*     } */
-/*   } */
-  log_add_target("stdout:5");
+        options_clear(&opt);
+        log_close();
+        exit(ret);
+      }
+      tmp = tmp->next_;
+    }
+  }
   log_printf(NOTICE, "just started...");
-/*   options_parse_post(&opt); */
+  options_parse_post(&opt);
 
-/*   priv_info_t priv; */
-/*   if(opt.username_) */
-/*     if(priv_init(&priv, opt.username_, opt.groupname_)) { */
-/*       options_clear(&opt); */
-/*       log_close(); */
-/*       exit(-1); */
-/*     } */
+  priv_info_t priv;
+  if(opt.username_)
+    if(priv_init(&priv, opt.username_, opt.groupname_)) {
+      options_clear(&opt);
+      log_close();
+      exit(-1);
+    }
 
-  int ttyusb_fd = open("/dev/ttyUSB0", O_RDWR);
+  int ttyusb_fd = open(opt.ttyusb_dev_, O_RDWR);
   if(ttyusb_fd < 0) {
-    log_printf(ERROR, "unable to open /dev/ttyUSB0: %s", strerror(errno));
-/*     options_clear(&opt); */
+    log_printf(ERROR, "unable to open %s: %s", opt.ttyusb_dev_, strerror(errno));
+    options_clear(&opt);
     log_close();
     exit(-1);
   }
@@ -206,12 +199,12 @@ int main(int argc, char* argv[])
   if(cmd_listen_fd < 0) {
     log_printf(ERROR, "unable to open socket: %s", strerror(errno));
     close(ttyusb_fd);
-/*     options_clear(&opt); */
+    options_clear(&opt);
     log_close();
     exit(-1);
   }
   local.sun_family = AF_UNIX;
-  strcpy(local.sun_path, "sock");
+  strcpy(local.sun_path, opt.command_sock_); // TODO: strlen ???
   unlink(local.sun_path);
   len = SUN_LEN(&local);
   ret = bind(cmd_listen_fd, (struct sockaddr*)&local, len);
@@ -219,7 +212,7 @@ int main(int argc, char* argv[])
     log_printf(ERROR, "unable to bind to '%s': %s", local.sun_path, strerror(errno));
     close(cmd_listen_fd);
     close(ttyusb_fd);
-/*     options_clear(&opt); */
+    options_clear(&opt);
     log_close();
     exit(-1);
   }
@@ -229,49 +222,49 @@ int main(int argc, char* argv[])
     log_printf(ERROR, "unable to listen on command socket: %s", local.sun_path, strerror(errno));
     close(cmd_listen_fd);
     close(ttyusb_fd);
-/*     options_clear(&opt); */
+    options_clear(&opt);
     log_close();
     exit(-1);
   }
   
-/*   FILE* pid_file = NULL; */
-/*   if(opt.pid_file_) { */
-/*     pid_file = fopen(opt.pid_file_, "w"); */
-/*     if(!pid_file) { */
-/*       log_printf(WARNING, "unable to open pid file: %s", strerror(errno)); */
-/*     } */
-/*   } */
+  FILE* pid_file = NULL;
+  if(opt.pid_file_) {
+    pid_file = fopen(opt.pid_file_, "w");
+    if(!pid_file) {
+      log_printf(WARNING, "unable to open pid file: %s", strerror(errno));
+    }
+  }
 
-/*   if(opt.chroot_dir_) */
-/*     if(do_chroot(opt.chroot_dir_)) { */
-/*       options_clear(&opt); */
-/*       log_close(); */
-/*       exit(-1); */
-/*     } */
-/*   if(opt.username_) */
-/*     if(priv_drop(&priv)) { */
-/*       options_clear(&opt); */
-/*       log_close(); */
-/*       exit(-1); */
-/*     }   */
+  if(opt.chroot_dir_)
+    if(do_chroot(opt.chroot_dir_)) {
+      options_clear(&opt);
+      log_close();
+      exit(-1);
+    }
+  if(opt.username_)
+    if(priv_drop(&priv)) {
+      options_clear(&opt);
+      log_close();
+      exit(-1);
+    }
 
-/*   if(opt.daemonize_) { */
-/*     pid_t oldpid = getpid(); */
-/*     daemonize(); */
-/*     log_printf(INFO, "running in background now (old pid: %d)", oldpid); */
-/*   } */
+  if(opt.daemonize_) {
+    pid_t oldpid = getpid();
+    daemonize();
+    log_printf(INFO, "running in background now (old pid: %d)", oldpid);
+  }
 
-/*   if(pid_file) { */
-/*     pid_t pid = getpid(); */
-/*     fprintf(pid_file, "%d", pid); */
-/*     fclose(pid_file); */
-/*   } */
+  if(pid_file) {
+    pid_t pid = getpid();
+    fprintf(pid_file, "%d", pid);
+    fclose(pid_file);
+  }
 
   ret = main_loop(ttyusb_fd, cmd_listen_fd);
 
   close(cmd_listen_fd);
   close(ttyusb_fd);
-/*   options_clear(&opt); */
+  options_clear(&opt);
 
   if(!ret)
     log_printf(NOTICE, "normal shutdown");
