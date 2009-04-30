@@ -34,30 +34,60 @@
 #include "daemon.h"
 #include "sysexec.h"
 
+int init_command_socket(const char* path)
+{
+  int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  if(fd < 0) {
+    log_printf(ERROR, "unable to open socket: %s", strerror(errno));
+    return -1;
+  }
+
+  struct sockaddr_un local;
+  local.sun_family = AF_UNIX;
+  strcpy(local.sun_path, path); // TODO: strlen ???
+  unlink(local.sun_path);
+  int len = SUN_LEN(&local);
+  int ret = bind(fd, (struct sockaddr*)&local, len);
+  if(ret) {
+    log_printf(ERROR, "unable to bind to '%s': %s", local.sun_path, strerror(errno));
+    return -1;
+  }
+  
+  ret = listen(fd, 4);
+  if(ret) {
+    log_printf(ERROR, "unable to listen on command socket: %s", local.sun_path, strerror(errno));
+    return -1;
+  }
+
+  log_printf(INFO, "now listening on %s for incoming commands", path);
+  
+  return fd;
+}
+
 int process_cmd(int fd)
 {
-  log_printf(INFO, "processing command from %d", fd);
-
-  char* buffer[100];
+  static char* buffer[100];
   int ret = 0;
   do {
     ret = recv(fd, buffer, sizeof(buffer), 0);
     if(!ret) return 1;
   } while (ret == -1 && errno == EINTR);
     
+  log_printf(DEBUG, "processing command from %d", fd);
+
   return 0;
 }
 
 int process_ttyusb(int ttyusb_fd)
 {
-  log_printf(INFO, "processing data from ttyusb (fd=%d)", ttyusb_fd);
-
-  char* buffer[100];
+  static char* buffer[100];
   int ret = 0;
   do {
     ret = read(ttyusb_fd, buffer, sizeof(buffer));
-    if(!ret) return -1;
+    if(!ret) return 2;
   } while (ret == -1 && errno == EINTR);
+
+  log_printf(INFO, "processing data from ttyusb (fd=%d)", ttyusb_fd);
 
   return 0;
 }
@@ -107,7 +137,7 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
         return_value = -1;
         break;
       }  
-      log_printf(INFO, "new command connection (fd=%d)", new_fd);
+      log_printf(DEBUG, "new command connection (fd=%d)", new_fd);
       FD_SET(new_fd, &readfds);
       max_fd = (max_fd < new_fd) ? new_fd : max_fd;
       FD_CLR(cmd_listen_fd, &tmpfds);
@@ -118,6 +148,7 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
       if(FD_ISSET(fd, &tmpfds)) {
         return_value = process_cmd(fd); 
         if(return_value == 1) {
+          log_printf(DEBUG, "removing closed command connection (fd=%d)", fd);
           close(fd);
           FD_CLR(fd, &readfds);
           return_value = 0;
@@ -193,40 +224,14 @@ int main(int argc, char* argv[])
     exit(-1);
   }
 
-  int cmd_listen_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-  struct sockaddr_un local;
-  int len;
+  int cmd_listen_fd = init_command_socket(opt.command_sock_);
   if(cmd_listen_fd < 0) {
-    log_printf(ERROR, "unable to open socket: %s", strerror(errno));
-    close(ttyusb_fd);
-    options_clear(&opt);
-    log_close();
-    exit(-1);
-  }
-  local.sun_family = AF_UNIX;
-  strcpy(local.sun_path, opt.command_sock_); // TODO: strlen ???
-  unlink(local.sun_path);
-  len = SUN_LEN(&local);
-  ret = bind(cmd_listen_fd, (struct sockaddr*)&local, len);
-  if(ret) {
-    log_printf(ERROR, "unable to bind to '%s': %s", local.sun_path, strerror(errno));
-    close(cmd_listen_fd);
     close(ttyusb_fd);
     options_clear(&opt);
     log_close();
     exit(-1);
   }
 
-  ret = listen(cmd_listen_fd, 4);
-  if(ret) {
-    log_printf(ERROR, "unable to listen on command socket: %s", local.sun_path, strerror(errno));
-    close(cmd_listen_fd);
-    close(ttyusb_fd);
-    options_clear(&opt);
-    log_close();
-    exit(-1);
-  }
-  
   FILE* pid_file = NULL;
   if(opt.pid_file_) {
     pid_file = fopen(opt.pid_file_, "w");
@@ -260,7 +265,14 @@ int main(int argc, char* argv[])
     fclose(pid_file);
   }
 
-  ret = main_loop(ttyusb_fd, cmd_listen_fd);
+  do {
+    ret = main_loop(ttyusb_fd, cmd_listen_fd);
+    if(ret == 2) {
+      log_printf(ERROR, "%s read error, trying to reopen", opt.ttyusb_dev_);
+      sleep(1);
+          // TODO: implement reopen!
+    }
+  } while(ret == 2);
 
   close(cmd_listen_fd);
   close(ttyusb_fd);
