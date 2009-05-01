@@ -31,6 +31,8 @@
 #include "sig_handler.h"
 #include "options.h"
 
+#include "command_queue.h"
+
 #include "daemon.h"
 #include "sysexec.h"
 
@@ -64,13 +66,70 @@ int init_command_socket(const char* path)
   return fd;
 }
 
-int process_cmd(int fd)
+int handle_command(const char* cmd, int fd, cmd_t** cmd_q)
 {
-  static char* buffer[100];
+  if(!cmd_q || !cmd)
+    return -1;
+  
+  cmd_id_t cmd_id;
+  if(!strncmp(cmd, "open", 4))
+    cmd_id = OPEN;
+  else if(!strncmp(cmd, "close", 5))
+    cmd_id = CLOSE;
+  else if(!strncmp(cmd, "toggle", 6))
+    cmd_id = TOGGLE;
+  else if(!strncmp(cmd, "reset", 5))
+    cmd_id = RESET;
+  else if(!strncmp(cmd, "status", 6))
+    cmd_id = STATUS;
+  else if(!strncmp(cmd, "log", 3))
+    cmd_id = LOG;
+  else {
+    log_printf(WARNING, "unknown command '%s'", cmd);
+    return 1;
+  }
+  char* param = strchr(cmd, ' ');
+  if(param) 
+    param++;
+
+  switch(cmd_id) {
+  case OPEN:
+  case CLOSE:
+  case TOGGLE:
+  case STATUS:
+  case RESET: {
+    int ret = cmd_push(cmd_q, fd, cmd_id, param);
+    if(ret)
+      return ret;
+
+    log_printf(NOTICE, "command: %s", cmd); 
+    break;
+  }
+  case LOG: {
+    if(param && param[0])
+      log_printf(NOTICE, "ext msg: %s", param); 
+    else
+      log_printf(DEBUG, "ignoring empty ext log message");
+    break;
+  }
+  }
+  
+  return 0;
+}
+
+int process_cmd(int fd, cmd_t **cmd_q)
+{
+  static char buffer[100];
   int ret = 0;
   do {
+    memset(buffer, 0, 100);
     ret = recv(fd, buffer, sizeof(buffer), 0);
     if(!ret) return 1;
+    char* saveptr;
+    char* tok = strtok_r(buffer, "\n\r", &saveptr);
+    do {
+      handle_command(tok, fd, cmd_q);
+    } while(tok = strtok_r(NULL, "\n\r", &saveptr));
   } while (ret == -1 && errno == EINTR);
     
   log_printf(DEBUG, "processing command from %d", fd);
@@ -78,11 +137,12 @@ int process_cmd(int fd)
   return 0;
 }
 
-int process_ttyusb(int ttyusb_fd)
+int process_ttyusb(int ttyusb_fd, cmd_t **cmd_q)
 {
-  static char* buffer[100];
+  static char buffer[100];
   int ret = 0;
   do {
+    memset(buffer, 0, 100);
     ret = read(ttyusb_fd, buffer, sizeof(buffer));
     if(!ret) return 2;
   } while (ret == -1 && errno == EINTR);
@@ -102,6 +162,7 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
   FD_SET(ttyusb_fd, &readfds);
   FD_SET(cmd_listen_fd, &readfds);
   int max_fd = ttyusb_fd > cmd_listen_fd ? ttyusb_fd : cmd_listen_fd;
+  cmd_t* cmd_q = NULL;
 
   signal_init();
   int return_value = 0;
@@ -123,7 +184,7 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
     }
 
     if(FD_ISSET(ttyusb_fd, &tmpfds)) {
-      return_value = process_ttyusb(ttyusb_fd);
+      return_value = process_ttyusb(ttyusb_fd, &cmd_q);
       if(return_value)
         break;
 
@@ -146,7 +207,7 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
     int fd;
     for(fd = 0; fd <= max_fd; fd++) {
       if(FD_ISSET(fd, &tmpfds)) {
-        return_value = process_cmd(fd); 
+        return_value = process_cmd(fd, &cmd_q); 
         if(return_value == 1) {
           log_printf(DEBUG, "removing closed command connection (fd=%d)", fd);
           close(fd);
@@ -159,6 +220,7 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
     }
   }
 
+  cmd_clear(&cmd_q);
   return return_value;
 }
 
@@ -173,7 +235,7 @@ int main(int argc, char* argv[])
       fprintf(stderr, "syntax error near: %s\n\n", argv[ret]);
     }
     if(ret == -2) {
-      fprintf(stderr, "memory error on options_parse, exitting\n");
+      fprintf(stderr, "memory error on options_parse, exiting\n");
     }
 
     if(ret != -2)
@@ -216,22 +278,6 @@ int main(int argc, char* argv[])
       exit(-1);
     }
 
-  int ttyusb_fd = open(opt.ttyusb_dev_, O_RDWR);
-  if(ttyusb_fd < 0) {
-    log_printf(ERROR, "unable to open %s: %s", opt.ttyusb_dev_, strerror(errno));
-    options_clear(&opt);
-    log_close();
-    exit(-1);
-  }
-
-  int cmd_listen_fd = init_command_socket(opt.command_sock_);
-  if(cmd_listen_fd < 0) {
-    close(ttyusb_fd);
-    options_clear(&opt);
-    log_close();
-    exit(-1);
-  }
-
   FILE* pid_file = NULL;
   if(opt.pid_file_) {
     pid_file = fopen(opt.pid_file_, "w");
@@ -265,26 +311,37 @@ int main(int argc, char* argv[])
     fclose(pid_file);
   }
 
-  do {
-    ret = main_loop(ttyusb_fd, cmd_listen_fd);
-    if(ret == 2) {
-      log_printf(ERROR, "%s read error, trying to reopen", opt.ttyusb_dev_);
-      sleep(1);
-          // TODO: implement reopen!
-    }
-  } while(ret == 2);
+  int ttyusb_fd = open(opt.ttyusb_dev_, O_RDWR);
+  if(ttyusb_fd < 0) {
+    log_printf(ERROR, "unable to open %s: %s", opt.ttyusb_dev_, strerror(errno));
+    options_clear(&opt);
+    log_close();
+    exit(-1);
+  }
+
+  int cmd_listen_fd = init_command_socket(opt.command_sock_);
+  if(cmd_listen_fd < 0) {
+    close(ttyusb_fd);
+    options_clear(&opt);
+    log_close();
+    exit(-1);
+  }
+
+  ret = main_loop(ttyusb_fd, cmd_listen_fd);
 
   close(cmd_listen_fd);
   close(ttyusb_fd);
-  options_clear(&opt);
 
   if(!ret)
     log_printf(NOTICE, "normal shutdown");
   else if(ret < 0)
     log_printf(NOTICE, "shutdown after error");
+  else if(ret == 2)
+    log_printf(ERROR, "shutdown after %s read error", opt.ttyusb_dev_);
   else
     log_printf(NOTICE, "shutdown after signal");
 
+  options_clear(&opt);
   log_close();
 
   return ret;
