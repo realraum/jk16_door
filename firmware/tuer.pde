@@ -38,6 +38,7 @@ int debounce_cnt = 0;
 
 #define CMD_OPEN 'o'
 #define CMD_CLOSE 'c'
+#define CMD_TOGGLE 't'
 #define CMD_STATUS 's'
 #define CMD_RESET 'r'
 
@@ -550,6 +551,17 @@ void loop()
           start_close();
           Serial.println("Ok");
         }
+      }
+      else
+        Serial.println("Error: Operation in progress");
+    }
+    else if (command == CMD_TOGGLE) {
+      if(current_state == IDLE) {
+	if(is_closed())
+	  start_open();
+	else
+	  start_close();
+	Serial.println("Ok");
       }
       else
         Serial.println("Error: Operation in progress");

@@ -21,6 +21,8 @@
    response: "Ok", "Already closed", "Error: .*"
   o ... open
    response: "Ok", "Already opened", "Error: .*"
+  t ... toggle
+   responce: "Ok", "Error: .*"
   s ... status
    response: "Status: closed|opened|<->, opening|waiting|closing|idle"
          or  "Error: .*"
