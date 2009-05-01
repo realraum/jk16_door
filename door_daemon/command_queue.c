@@ -56,6 +56,7 @@ int cmd_push(cmd_t** first, int fd, cmd_id_t cmd, const char* param)
   }
   else
     new_cmd->param = NULL;
+  new_cmd->sent = 0;
   new_cmd->next = NULL;
 
   if(!(*first)) {

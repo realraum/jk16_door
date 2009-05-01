@@ -66,6 +66,33 @@ int init_command_socket(const char* path)
   return fd;
 }
 
+int send_command(int ttyusb_fd, cmd_t* cmd)
+{
+  if(!cmd)
+    return -1;
+  
+  char c;
+  switch(cmd->cmd) {
+  case OPEN: c = 'o'; break;
+  case CLOSE: c = 'c'; break;
+  case TOGGLE: c = 't'; break;
+  case STATUS: c = 's'; break;
+  case RESET: c = 'r'; break;
+  case LOG: return 0;
+  }
+  
+  int ret;
+  do {
+    ret = write(ttyusb_fd, &c, 1);
+  }
+  while(!ret);
+
+  if(ret > 0)
+    return 0;
+
+  return ret;
+}
+
 int handle_command(const char* cmd, int fd, cmd_t** cmd_q)
 {
   if(!cmd_q || !cmd)
@@ -124,11 +151,14 @@ int process_cmd(int fd, cmd_t **cmd_q)
   do {
     memset(buffer, 0, 100);
     ret = recv(fd, buffer, sizeof(buffer), 0);
-    if(!ret) return 1;
+    if(!ret)
+      return 1;
     char* saveptr;
     char* tok = strtok_r(buffer, "\n\r", &saveptr);
     do {
-      handle_command(tok, fd, cmd_q);
+      ret = handle_command(tok, fd, cmd_q);
+      if(ret < 0)
+        return ret;
     } while(tok = strtok_r(NULL, "\n\r", &saveptr));
   } while (ret == -1 && errno == EINTR);
     
@@ -144,7 +174,8 @@ int process_ttyusb(int ttyusb_fd, cmd_t **cmd_q)
   do {
     memset(buffer, 0, 100);
     ret = read(ttyusb_fd, buffer, sizeof(buffer));
-    if(!ret) return 2;
+    if(!ret) 
+      return 2;
   } while (ret == -1 && errno == EINTR);
 
   log_printf(INFO, "processing data from ttyusb (fd=%d)", ttyusb_fd);
@@ -216,6 +247,9 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
         }
         if(return_value)
           break;
+
+        if(cmd_q && !cmd_q->sent)
+          send_command(ttyusb_fd, cmd_q);
       }
     }
   }

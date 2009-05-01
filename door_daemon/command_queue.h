@@ -28,6 +28,7 @@ struct cmd_struct {
   int fd;
   cmd_id_t cmd;
   char* param;
+  int sent;
   struct cmd_struct* next;
 };
 typedef struct cmd_struct cmd_t;
