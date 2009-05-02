@@ -170,7 +170,7 @@ int options_parse(options_t* opt, int argc, char* argv[])
     PARSE_STRING_PARAM("-C","--chroot", opt->chroot_dir_)
     PARSE_STRING_PARAM("-P","--write-pid", opt->pid_file_)
     PARSE_STRING_LIST("-L","--log", opt->log_targets_)
-    PARSE_STRING_PARAM("-d","--device", opt->ttyusb_dev_)
+    PARSE_STRING_PARAM("-d","--device", opt->door_dev_)
     PARSE_STRING_PARAM("-s","--socket", opt->command_sock_)
     else 
       return i;
@@ -199,7 +199,7 @@ void options_default(options_t* opt)
   opt->pid_file_ = NULL;
   string_list_init(&opt->log_targets_);
 
-  opt->ttyusb_dev_ = strdup("/dev/ttyUSB0");
+  opt->door_dev_ = strdup("/dev/ttyUSB0");
   opt->command_sock_ = strdup("/var/run/door_daemon");
 }
 
@@ -220,8 +220,8 @@ void options_clear(options_t* opt)
     free(opt->pid_file_);
   string_list_clear(&opt->log_targets_);
 
-  if(opt->ttyusb_dev_)
-    free(opt->ttyusb_dev_);
+  if(opt->door_dev_)
+    free(opt->door_dev_);
   if(opt->command_sock_)
     free(opt->command_sock_);
 }
@@ -256,6 +256,6 @@ void options_print(options_t* opt)
   printf("log_targets: \n");
   string_list_print(&opt->log_targets_, "  '", "'\n");
 
-  printf("ttyusb_dev: '%s'\n", opt->ttyusb_dev_);
+  printf("door_dev: '%s'\n", opt->door_dev_);
   printf("command_sock: '%s'\n", opt->command_sock_);
 }

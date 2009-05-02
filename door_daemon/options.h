@@ -32,7 +32,7 @@ struct options_struct {
   char* pid_file_;
   string_list_t log_targets_;
 
-  char* ttyusb_dev_;
+  char* door_dev_;
   char* command_sock_;
 };
 typedef struct options_struct options_t;

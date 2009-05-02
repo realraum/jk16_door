@@ -66,7 +66,7 @@ int init_command_socket(const char* path)
   return fd;
 }
 
-int send_command(int ttyusb_fd, cmd_t* cmd)
+int send_command(int door_fd, cmd_t* cmd)
 {
   if(!cmd)
     return -1;
@@ -83,12 +83,14 @@ int send_command(int ttyusb_fd, cmd_t* cmd)
   
   int ret;
   do {
-    ret = write(ttyusb_fd, &c, 1);
+    ret = write(door_fd, &c, 1);
   }
   while(!ret);
 
-  if(ret > 0)
+  if(ret > 0) {
+    cmd->sent = 1;
     return 0;
+  }
 
   return ret;
 }
@@ -167,32 +169,32 @@ int process_cmd(int fd, cmd_t **cmd_q)
   return 0;
 }
 
-int process_ttyusb(int ttyusb_fd, cmd_t **cmd_q)
+int process_door(int door_fd, cmd_t **cmd_q)
 {
   static char buffer[100];
   int ret = 0;
   do {
     memset(buffer, 0, 100);
-    ret = read(ttyusb_fd, buffer, sizeof(buffer));
+    ret = read(door_fd, buffer, sizeof(buffer));
     if(!ret) 
       return 2;
   } while (ret == -1 && errno == EINTR);
 
-  log_printf(INFO, "processing data from ttyusb (fd=%d)", ttyusb_fd);
+  log_printf(INFO, "processing data from door (fd=%d)", door_fd);
 
   return 0;
 }
 
 
-int main_loop(int ttyusb_fd, int cmd_listen_fd)
+int main_loop(int door_fd, int cmd_listen_fd)
 {
   log_printf(INFO, "entering main loop");
 
   fd_set readfds, tmpfds;
   FD_ZERO(&readfds);
-  FD_SET(ttyusb_fd, &readfds);
+  FD_SET(door_fd, &readfds);
   FD_SET(cmd_listen_fd, &readfds);
-  int max_fd = ttyusb_fd > cmd_listen_fd ? ttyusb_fd : cmd_listen_fd;
+  int max_fd = door_fd > cmd_listen_fd ? door_fd : cmd_listen_fd;
   cmd_t* cmd_q = NULL;
 
   signal_init();
@@ -214,12 +216,12 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
       break;
     }
 
-    if(FD_ISSET(ttyusb_fd, &tmpfds)) {
-      return_value = process_ttyusb(ttyusb_fd, &cmd_q);
+    if(FD_ISSET(door_fd, &tmpfds)) {
+      return_value = process_door(door_fd, &cmd_q);
       if(return_value)
         break;
 
-      FD_CLR(ttyusb_fd, &tmpfds);
+      FD_CLR(door_fd, &tmpfds);
     }
 
     if(FD_ISSET(cmd_listen_fd, &tmpfds)) {
@@ -249,7 +251,7 @@ int main_loop(int ttyusb_fd, int cmd_listen_fd)
           break;
 
         if(cmd_q && !cmd_q->sent)
-          send_command(ttyusb_fd, cmd_q);
+          send_command(door_fd, cmd_q);
       }
     }
   }
@@ -345,9 +347,9 @@ int main(int argc, char* argv[])
     fclose(pid_file);
   }
 
-  int ttyusb_fd = open(opt.ttyusb_dev_, O_RDWR);
-  if(ttyusb_fd < 0) {
-    log_printf(ERROR, "unable to open %s: %s", opt.ttyusb_dev_, strerror(errno));
+  int door_fd = open(opt.door_dev_, O_RDWR);
+  if(door_fd < 0) {
+    log_printf(ERROR, "unable to open %s: %s", opt.door_dev_, strerror(errno));
     options_clear(&opt);
     log_close();
     exit(-1);
@@ -355,23 +357,23 @@ int main(int argc, char* argv[])
 
   int cmd_listen_fd = init_command_socket(opt.command_sock_);
   if(cmd_listen_fd < 0) {
-    close(ttyusb_fd);
+    close(door_fd);
     options_clear(&opt);
     log_close();
     exit(-1);
   }
 
-  ret = main_loop(ttyusb_fd, cmd_listen_fd);
+  ret = main_loop(door_fd, cmd_listen_fd);
 
   close(cmd_listen_fd);
-  close(ttyusb_fd);
+  close(door_fd);
 
   if(!ret)
     log_printf(NOTICE, "normal shutdown");
   else if(ret < 0)
     log_printf(NOTICE, "shutdown after error");
   else if(ret == 2)
-    log_printf(ERROR, "shutdown after %s read error", opt.ttyusb_dev_);
+    log_printf(ERROR, "shutdown after %s read error", opt.door_dev_);
   else
     log_printf(NOTICE, "shutdown after signal");
 
