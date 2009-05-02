@@ -84,13 +84,43 @@ int send_command(int door_fd, cmd_t* cmd)
   int ret;
   do {
     ret = write(door_fd, &c, 1);
-  }
-  while(!ret);
+  } while(!ret || (ret == -1 && errno == EINTR));
 
   if(ret > 0) {
     cmd->sent = 1;
     return 0;
   }
+
+  return ret;
+}
+
+int send_response(int fd, const char* response)
+{
+  if(!response)
+    return -1;
+
+  int len = strlen(response);
+  int offset = 0;
+  int ret;
+  for(;;) {
+    ret = write(fd, &response[offset], strlen(response));
+    if(ret < 0) {
+      if(errno != EINTR)
+        return ret;
+
+      ret = 0;
+    }
+
+    offset += ret;
+    if(offset+1 >= len)
+      break;
+  }
+  do {
+    ret = write(fd, "\n", 1);
+  } while(!ret || (ret == -1 && errno == EINTR));
+
+  if(ret > 0)
+    return 0;
 
   return ret;
 }
@@ -150,7 +180,7 @@ int process_cmd(int fd, cmd_t **cmd_q)
 {
   static char buffer[100];
   int ret = 0;
-  do {
+  do { // TODO: replace this whith a actually working readline
     memset(buffer, 0, 100);
     ret = recv(fd, buffer, sizeof(buffer), 0);
     if(!ret)
@@ -173,14 +203,25 @@ int process_door(int door_fd, cmd_t **cmd_q)
 {
   static char buffer[100];
   int ret = 0;
-  do {
+  do { // TODO: replace this whith a actually working readline
     memset(buffer, 0, 100);
     ret = read(door_fd, buffer, sizeof(buffer));
     if(!ret) 
       return 2;
+    char* saveptr;
+    char* tok = strtok_r(buffer, "\n\r", &saveptr);
+    do {
+      if(!cmd_q || !(*cmd_q))
+        break;
+      ret = send_response((*cmd_q)->fd, tok);
+      if(ret < 0)
+        return ret;
+
+      cmd_pop(cmd_q);
+    } while(tok = strtok_r(NULL, "\n\r", &saveptr));
   } while (ret == -1 && errno == EINTR);
 
-  log_printf(INFO, "processing data from door (fd=%d)", door_fd);
+  log_printf(DEBUG, "processing data from door (fd=%d)", door_fd);
 
   return 0;
 }
@@ -249,11 +290,11 @@ int main_loop(int door_fd, int cmd_listen_fd)
         }
         if(return_value)
           break;
-
-        if(cmd_q && !cmd_q->sent)
-          send_command(door_fd, cmd_q);
       }
     }
+
+    if(cmd_q && !cmd_q->sent)
+      send_command(door_fd, cmd_q);
   }
 
   cmd_clear(&cmd_q);
