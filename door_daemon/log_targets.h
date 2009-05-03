@@ -32,6 +32,27 @@
  *  along with uAnytun. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <time.h>
+
+static char* get_time_formatted()
+{
+  char* time_string;
+  time_t t = time(NULL);
+  if(t < 0) 
+    time_string = "<time read error>";
+  else {
+    time_string = ctime(&t);
+    if(!time_string)
+      time_string = "<time format error>";
+    else {
+      char* newline = strchr(time_string, '\n');
+      if(newline)
+        newline[0] = 0;
+    }
+  }
+  return time_string;
+}
+
 enum syslog_facility_enum { USER = LOG_USER, MAIL = LOG_MAIL,
                             DAEMON = LOG_DAEMON, AUTH = LOG_AUTH,
                             SYSLOG = LOG_SYSLOG, LPR = LOG_LPR,
@@ -235,7 +256,7 @@ void log_target_file_log(log_target_t* self, log_prio_t prio, const char* msg)
   if(!self || !self->param_ || !self->opened_)
     return;
 
-  fprintf(((log_target_file_param_t*)(self->param_))->file_, "%s-%s\n", log_prio_to_string(prio), msg);
+  fprintf(((log_target_file_param_t*)(self->param_))->file_, "%s %s: %s\n", get_time_formatted(), log_prio_to_string(prio), msg);
   fflush(((log_target_file_param_t*)(self->param_))->file_);
 }
 
@@ -284,7 +305,7 @@ log_target_t* log_target_file_new()
 
 void log_target_stdout_log(log_target_t* self, log_prio_t prio, const char* msg)
 {
-  printf("%s-%s\n", log_prio_to_string(prio), msg);
+  printf("%s %s: %s\n", get_time_formatted(), log_prio_to_string(prio), msg);
 }
 
 log_target_t* log_target_stdout_new()
@@ -311,7 +332,7 @@ log_target_t* log_target_stdout_new()
 
 void log_target_stderr_log(log_target_t* self, log_prio_t prio, const char* msg)
 {
-  fprintf(stderr, "%s-%s\n", log_prio_to_string(prio), msg);
+  fprintf(stderr, "%s %s: %s\n", get_time_formatted(), log_prio_to_string(prio), msg);
 }
 
 log_target_t* log_target_stderr_new()
