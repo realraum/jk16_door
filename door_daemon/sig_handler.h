@@ -37,9 +37,8 @@
 
 #include <signal.h>
 
-extern volatile sig_atomic_t signal_exit;
-
-void signal_init();
-void handle_signal(int sig);
+int signal_init();
+int signal_handle();
+void signal_stop();
 
 #endif

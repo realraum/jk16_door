@@ -238,7 +238,12 @@ int main_loop(int door_fd, int cmd_listen_fd)
   int max_fd = door_fd > cmd_listen_fd ? door_fd : cmd_listen_fd;
   cmd_t* cmd_q = NULL;
 
-  signal_init();
+  int sig_fd = signal_init();
+  if(sig_fd < 0)
+    return -1;
+  FD_SET(sig_fd, &readfds);
+  max_fd = (max_fd < sig_fd) ? sig_fd : max_fd;
+
   int return_value = 0;
   while(!return_value) {
     memcpy(&tmpfds, &readfds, sizeof(tmpfds));
@@ -249,13 +254,14 @@ int main_loop(int door_fd, int cmd_listen_fd)
       return_value = -1;
       break;
     }
-    if(!ret)
+    if(!ret || ret == -1)
       continue;
 
-    if(signal_exit) {
+    if(signal_handle()) {
       return_value = 1;
       break;
     }
+    FD_CLR(sig_fd, &tmpfds);
 
     if(FD_ISSET(door_fd, &tmpfds)) {
       return_value = process_door(door_fd, &cmd_q);
@@ -298,6 +304,7 @@ int main_loop(int door_fd, int cmd_listen_fd)
   }
 
   cmd_clear(&cmd_q);
+  signal_stop();
   return return_value;
 }
 
