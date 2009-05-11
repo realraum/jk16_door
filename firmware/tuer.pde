@@ -571,11 +571,11 @@ void loop()
     else
       Serial.println("Error: unknown command");
   }
-  if(manual_open() && !is_opened() && current_state == IDLE) {
+  if(manual_open() && !is_opened() && (current_state == IDLE || current_state == ERROR)) {
     Serial.println("open forced manually");
     start_open();
   }
-  if(manual_close() && !is_closed() && current_state == IDLE) {
+  if(manual_close() && !is_closed() && (current_state == IDLE || current_state == ERROR)) {
     Serial.println("close forced manually");
     start_close();
   }
