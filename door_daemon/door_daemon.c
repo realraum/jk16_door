@@ -451,7 +451,7 @@ int main(int argc, char* argv[])
     fclose(pid_file);
   }
 
-  int door_fd = open(opt.door_dev_, O_RDWR);
+  int door_fd = open(opt.door_dev_, O_RDWR | O_NOCTTY);
   if(door_fd < 0) {
     log_printf(ERROR, "unable to open %s: %s", opt.door_dev_, strerror(errno));
     options_clear(&opt);
