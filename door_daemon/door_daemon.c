@@ -233,7 +233,7 @@ int process_door(int door_fd, cmd_t **cmd_q, client_t* client_lst)
       if(!strncmp(tok, "Status:", 7)) {
         client_t* client;
         for(client = client_lst; client; client = client->next)
-          if(client->status_listener)
+          if(client->status_listener && client->fd != (*cmd_q)->fd)
             send_response(client->fd, tok);
       }
 
