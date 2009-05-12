@@ -20,6 +20,9 @@
 
 #include "datatypes.h"
 
+#include <termios.h>
+#include <unistd.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -330,6 +333,37 @@ int main_loop(int door_fd, int cmd_listen_fd)
   return return_value;
 }
 
+int setup_tty(int fd)
+{
+  struct termios tmio;
+  
+  int ret = tcgetattr(fd, &tmio);
+  if(ret) {
+    log_printf(ERROR, "Error on tcgetattr(): %s", strerror(errno));
+    return ret;
+  }
+
+  ret = cfsetospeed(&tmio, B9600);
+  if(ret) {
+    log_printf(ERROR, "Error on cfsetospeed(): %s", strerror(errno));
+    return ret;
+  }
+
+  ret = cfsetispeed(&tmio, B9600);
+  if(ret) {
+    log_printf(ERROR, "Error on cfsetispeed(): %s", strerror(errno));
+    return ret;
+  }
+
+  ret = tcsetattr(fd, TCSANOW, &tmio);
+  if(ret) {
+    log_printf(ERROR, "Error on tcsetattr(): %s", strerror(errno));
+    return ret;
+  }
+  
+  return 0;
+}
+
 int main(int argc, char* argv[])
 {
   log_init();
@@ -424,6 +458,14 @@ int main(int argc, char* argv[])
     log_close();
     exit(-1);
   }
+  ret = setup_tty(door_fd);
+  if(ret) {
+    close(door_fd);
+    options_clear(&opt);
+    log_close();
+    exit(-1);
+  }
+  
 
   int cmd_listen_fd = init_command_socket(opt.command_sock_);
   if(cmd_listen_fd < 0) {
