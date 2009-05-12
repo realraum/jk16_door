@@ -227,9 +227,15 @@ int process_door(int door_fd, cmd_t **cmd_q, client_t* client_lst)
     do {
       if(!cmd_q || !(*cmd_q))
         break;
-      ret = send_response((*cmd_q)->fd, tok);
-      if(ret < 0)
-        return ret;
+
+      send_response((*cmd_q)->fd, tok);
+
+      if(!strncmp(tok, "Status:", 7)) {
+        client_t* client;
+        for(client = client_lst; client; client = client->next)
+          if(client->status_listener)
+            send_response(client->fd, tok);
+      }
 
       cmd_pop(cmd_q);
     } while(tok = strtok_r(NULL, "\n\r", &saveptr));
