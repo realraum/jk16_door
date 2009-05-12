@@ -29,6 +29,7 @@ OBJ := log.o \
       options.o \
       string_list.o \
       command_queue.o \
+      client_list.o \
       door_daemon.o
 
 

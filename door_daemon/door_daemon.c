@@ -32,6 +32,7 @@
 #include "options.h"
 
 #include "command_queue.h"
+#include "client_list.h"
 
 #include "daemon.h"
 #include "sysexec.h"
@@ -125,7 +126,7 @@ int send_response(int fd, const char* response)
   return ret;
 }
 
-int handle_command(const char* cmd, int fd, cmd_t** cmd_q)
+int handle_command(const char* cmd, int fd, cmd_t** cmd_q, client_t* client_lst)
 {
   if(!cmd_q || !cmd)
     return -1;
@@ -143,6 +144,17 @@ int handle_command(const char* cmd, int fd, cmd_t** cmd_q)
     cmd_id = STATUS;
   else if(!strncmp(cmd, "log", 3))
     cmd_id = LOG;
+  else if(!strncmp(cmd, "listen", 6)) {
+    client_t* listener = client_find(client_lst, fd);
+    if(listener) {
+      log_printf(DEBUG, "adding status listener %d", fd);
+      listener->status_listener = 1;
+    }
+    else       
+      log_printf(ERROR, "unable to add status listener %d", fd);
+
+    return 0;
+  }
   else {
     log_printf(WARNING, "unknown command '%s'", cmd);
     return 1;
@@ -176,8 +188,10 @@ int handle_command(const char* cmd, int fd, cmd_t** cmd_q)
   return 0;
 }
 
-int process_cmd(int fd, cmd_t **cmd_q)
+int process_cmd(int fd, cmd_t **cmd_q, client_t* client_lst)
 {
+  log_printf(DEBUG, "processing command from %d", fd);
+
   static char buffer[100];
   int ret = 0;
   do { // TODO: replace this whith a actually working readline
@@ -188,19 +202,19 @@ int process_cmd(int fd, cmd_t **cmd_q)
     char* saveptr;
     char* tok = strtok_r(buffer, "\n\r", &saveptr);
     do {
-      ret = handle_command(tok, fd, cmd_q);
+      ret = handle_command(tok, fd, cmd_q, client_lst);
       if(ret < 0)
         return ret;
     } while(tok = strtok_r(NULL, "\n\r", &saveptr));
   } while (ret == -1 && errno == EINTR);
     
-  log_printf(DEBUG, "processing command from %d", fd);
-
   return 0;
 }
 
-int process_door(int door_fd, cmd_t **cmd_q)
+int process_door(int door_fd, cmd_t **cmd_q, client_t* client_lst)
 {
+  log_printf(DEBUG, "processing data from door (fd=%d)", door_fd);
+
   static char buffer[100];
   int ret = 0;
   do { // TODO: replace this whith a actually working readline
@@ -221,8 +235,6 @@ int process_door(int door_fd, cmd_t **cmd_q)
     } while(tok = strtok_r(NULL, "\n\r", &saveptr));
   } while (ret == -1 && errno == EINTR);
 
-  log_printf(DEBUG, "processing data from door (fd=%d)", door_fd);
-
   return 0;
 }
 
@@ -237,6 +249,7 @@ int main_loop(int door_fd, int cmd_listen_fd)
   FD_SET(cmd_listen_fd, &readfds);
   int max_fd = door_fd > cmd_listen_fd ? door_fd : cmd_listen_fd;
   cmd_t* cmd_q = NULL;
+  client_t* client_lst = NULL;
 
   int sig_fd = signal_init();
   if(sig_fd < 0)
@@ -261,14 +274,11 @@ int main_loop(int door_fd, int cmd_listen_fd)
       return_value = 1;
       break;
     }
-    FD_CLR(sig_fd, &tmpfds);
 
     if(FD_ISSET(door_fd, &tmpfds)) {
-      return_value = process_door(door_fd, &cmd_q);
+      return_value = process_door(door_fd, &cmd_q, client_lst);
       if(return_value)
         break;
-
-      FD_CLR(door_fd, &tmpfds);
     }
 
     if(FD_ISSET(cmd_listen_fd, &tmpfds)) {
@@ -281,22 +291,27 @@ int main_loop(int door_fd, int cmd_listen_fd)
       log_printf(DEBUG, "new command connection (fd=%d)", new_fd);
       FD_SET(new_fd, &readfds);
       max_fd = (max_fd < new_fd) ? new_fd : max_fd;
-      FD_CLR(cmd_listen_fd, &tmpfds);
+      client_add(&client_lst, new_fd);
     }
 
-    int fd;
-    for(fd = 0; fd <= max_fd; fd++) {
-      if(FD_ISSET(fd, &tmpfds)) {
-        return_value = process_cmd(fd, &cmd_q); 
+    client_t* lst = client_lst;
+    while(lst) {
+      if(FD_ISSET(lst->fd, &tmpfds)) {
+        return_value = process_cmd(lst->fd, &cmd_q, client_lst); 
         if(return_value == 1) {
-          log_printf(DEBUG, "removing closed command connection (fd=%d)", fd);
-          close(fd);
-          FD_CLR(fd, &readfds);
+          log_printf(DEBUG, "removing closed command connection (fd=%d)", lst->fd);
+          client_t* deletee = lst;
+          lst = lst->next;
+          FD_CLR(deletee->fd, &readfds);
+          client_remove(&client_lst, deletee->fd);
           return_value = 0;
+          continue;
         }
         if(return_value)
           break;
+
       }
+      lst = lst->next;
     }
 
     if(cmd_q && !cmd_q->sent)
@@ -304,6 +319,7 @@ int main_loop(int door_fd, int cmd_listen_fd)
   }
 
   cmd_clear(&cmd_q);
+  client_clear(&client_lst);
   signal_stop();
   return return_value;
 }
