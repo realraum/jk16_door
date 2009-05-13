@@ -12,10 +12,11 @@ my $socketaddr = sockaddr_un($socketfile);
 my $keys;
 my %good;
 
-open $keys,'/flash/realraum/keys';
+open $keys,'/flash/keys';
 while (<$keys>)
 {
-	if ($_ =~ /([0-9A-Fa-f]{8})\s(\S+)/)
+	chomp;
+	if ($_ =~ /^([0-9A-Fa-f]{8})\s+(.+)$/)
 	{
 		$good{$1}=$2;
  	}
@@ -31,7 +32,7 @@ sub send_to_fifo
 
 while (sleep 1)
 {
-	open $fh,'/flash/realraum/mifare-read 0 2>&1 |';
+	open $fh,'/flash/tuer_python/mifare-read 0 2>&1 |';
 	while (<$fh>)
 	{
 		next unless /UID/;
