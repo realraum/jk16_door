@@ -53,7 +53,7 @@ int l2_init(int layer2)
 
   rc = rfid_layer2_open(l2h);
   if (rc < 0) {
-    fprintf(stderr, "error during layer2_open\n");
+//    fprintf(stderr, "error during layer2_open\n");
     return rc;
   }
 
