@@ -6,7 +6,7 @@ my $fh;
 #my $fifofile = "/tmp/door_cmd.fifo";
 
 my $socketfile = "/tmp/door_cmd.socket";
-exit(1) unless (-S $socketfile);
+sleep(1) while (! -S $socketfile);
 my $socketaddr = sockaddr_un($socketfile);
 
 my $keys;
