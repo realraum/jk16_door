@@ -228,15 +228,18 @@ int process_door(int door_fd, cmd_t **cmd_q, client_t* client_lst)
     char* saveptr;
     char* tok = strtok_r(buffer, "\n\r", &saveptr);
     do {
-      if(!cmd_q || !(*cmd_q))
-        break;
+      log_printf(NOTICE, "door-firmware: %s", tok);
 
-      send_response((*cmd_q)->fd, tok);
+      int cmd_fd = -1;
+      if(cmd_q && (*cmd_q)) {
+        cmd_fd = (*cmd_q)->fd;
+        send_response(cmd_fd, tok);
+      }
 
       if(!strncmp(tok, "Status:", 7)) {
         client_t* client;
         for(client = client_lst; client; client = client->next)
-          if(client->status_listener && client->fd != (*cmd_q)->fd)
+          if(client->status_listener && client->fd != cmd_fd)
             send_response(client->fd, tok);
       }
 
