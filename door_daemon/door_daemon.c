@@ -202,9 +202,15 @@ int process_cmd(int fd, cmd_t **cmd_q, client_t* client_lst)
     ret = recv(fd, buffer, sizeof(buffer), 0);
     if(!ret)
       return 1;
+    if(ret < 0)
+      return ret;
+
     char* saveptr;
     char* tok = strtok_r(buffer, "\n\r", &saveptr);
     do {
+      if(!tok)
+        continue;
+
       ret = handle_command(tok, fd, cmd_q, client_lst);
       if(ret < 0)
         return ret;
@@ -225,9 +231,15 @@ int process_door(int door_fd, cmd_t **cmd_q, client_t* client_lst)
     ret = read(door_fd, buffer, sizeof(buffer));
     if(!ret) 
       return 2;
+    if(ret < 0)
+      return ret;
+
     char* saveptr;
     char* tok = strtok_r(buffer, "\n\r", &saveptr);
     do {
+      if(!tok)
+        continue;
+
       log_printf(NOTICE, "door-firmware: %s", tok);
 
       int cmd_fd = -1;
@@ -358,12 +370,36 @@ int setup_tty(int fd)
     return ret;
   }
 
+  tmio.c_lflag &= ~ECHO;
+
   ret = tcsetattr(fd, TCSANOW, &tmio);
   if(ret) {
     log_printf(ERROR, "Error on tcsetattr(): %s", strerror(errno));
     return ret;
   }
   
+  ret = tcflush(fd, TCIFLUSH);
+  if(ret) {
+    log_printf(ERROR, "Error on tcflush(): %s", strerror(errno));
+    return ret;
+  }
+
+  fd_set fds;
+  struct timeval tv;
+  FD_ZERO(&fds);
+  FD_SET(fd, &fds);
+  tv.tv_sec = 0;
+  tv.tv_usec = 50000;
+  for(;;) {
+    ret = select(fd+1, &fds, NULL, NULL, &tv);
+    if(ret > 0) {
+      char buffer[100];
+      ret = read(fd, buffer, sizeof(buffer));
+    }
+    else
+      break;
+  }
+
   return 0;
 }
 
