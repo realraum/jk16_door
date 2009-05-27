@@ -490,41 +490,44 @@ int main(int argc, char* argv[])
     fclose(pid_file);
   }
 
-  int door_fd = open(opt.door_dev_, O_RDWR | O_NOCTTY);
-  if(door_fd < 0) {
-    log_printf(ERROR, "unable to open %s: %s", opt.door_dev_, strerror(errno));
-    options_clear(&opt);
-    log_close();
-    exit(-1);
-  }
-  ret = setup_tty(door_fd);
-  if(ret) {
-    close(door_fd);
+  int cmd_listen_fd = init_command_socket(opt.command_sock_);
+  if(cmd_listen_fd < 0) {
     options_clear(&opt);
     log_close();
     exit(-1);
   }
   
+  int door_fd = 0;
+  for(;;) {
+    door_fd = open(opt.door_dev_, O_RDWR | O_NOCTTY);
+    if(door_fd < 0)
+      ret = 2;
+    else {
+      ret = setup_tty(door_fd);
+      if(ret)
+        ret = 2;
+      else
+        ret = main_loop(door_fd, cmd_listen_fd);
+    }
 
-  int cmd_listen_fd = init_command_socket(opt.command_sock_);
-  if(cmd_listen_fd < 0) {
-    close(door_fd);
-    options_clear(&opt);
-    log_close();
-    exit(-1);
+    if(ret == 2) {
+      log_printf(ERROR, "%s error, trying to reopen in 5 seconds..", opt.door_dev_);
+      if(door_fd > 0)
+        close(door_fd);
+      sleep(5);
+    }
+    else
+      break;
   }
 
-  ret = main_loop(door_fd, cmd_listen_fd);
-
   close(cmd_listen_fd);
-  close(door_fd);
+  if(door_fd > 0)
+    close(door_fd);
 
   if(!ret)
     log_printf(NOTICE, "normal shutdown");
   else if(ret < 0)
     log_printf(NOTICE, "shutdown after error");
-  else if(ret == 2)
-    log_printf(ERROR, "shutdown after %s read error", opt.door_dev_);
   else
     log_printf(NOTICE, "shutdown after signal");
 
