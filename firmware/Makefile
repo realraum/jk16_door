@@ -1,7 +1,7 @@
 ## see README file
 
 TARGET = tuer
-INSTALL_DIR = /flash/realraum/firmware/arduino
+INSTALL_DIR = /home/realraum/tuer_svn/firmware/arduino
 PORT = /dev/ttyUSB0
 UPLOAD_RATE = 19200
 AVRDUDE_PROGRAMMER = stk500v1
