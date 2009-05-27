@@ -265,7 +265,7 @@ int process_door(int door_fd, cmd_t **cmd_q, client_t* client_lst)
 
 int main_loop(int door_fd, int cmd_listen_fd)
 {
-  log_printf(INFO, "entering main loop");
+  log_printf(NOTICE, "entering main loop");
 
   fd_set readfds, tmpfds;
   FD_ZERO(&readfds);
