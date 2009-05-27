@@ -199,7 +199,7 @@ void options_default(options_t* opt)
   opt->pid_file_ = NULL;
   string_list_init(&opt->log_targets_);
 
-  opt->door_dev_ = strdup("/dev/ttyUSB0");
+  opt->door_dev_ = strdup("/dev/door");
   opt->command_sock_ = strdup("/var/run/door_daemon");
 }
 
