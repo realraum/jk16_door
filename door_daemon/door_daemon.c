@@ -50,7 +50,11 @@ int init_command_socket(const char* path)
 
   struct sockaddr_un local;
   local.sun_family = AF_UNIX;
-  strcpy(local.sun_path, path); // TODO: strlen ???
+  if(sizeof(local.sun_path) <= strlen(path)) {
+    log_printf(ERROR, "socket path is to long (max %d)", sizeof(local.sun_path)-1);
+    return -1;
+  }
+  strcpy(local.sun_path, path);
   unlink(local.sun_path);
   int len = SUN_LEN(&local);
   int ret = bind(fd, (struct sockaddr*)&local, len);
@@ -197,7 +201,7 @@ int process_cmd(int fd, cmd_t **cmd_q, client_t* client_lst)
 
   static char buffer[100];
   int ret = 0;
-  do { // TODO: replace this whith a actually working readline
+  do { // TODO: replace this whith a actually working non-blocking-readline
     memset(buffer, 0, 100);
     ret = recv(fd, buffer, sizeof(buffer), 0);
     if(!ret)
@@ -226,7 +230,7 @@ int process_door(int door_fd, cmd_t **cmd_q, client_t* client_lst)
 
   static char buffer[100];
   int ret = 0;
-  do { // TODO: replace this whith a actually working readline
+  do { // TODO: replace this whith a actually working non-blocking-readline
     memset(buffer, 0, 100);
     ret = read(door_fd, buffer, sizeof(buffer));
     if(!ret) 
