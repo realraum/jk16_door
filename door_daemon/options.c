@@ -200,7 +200,7 @@ void options_default(options_t* opt)
   string_list_init(&opt->log_targets_);
 
   opt->door_dev_ = strdup("/dev/door");
-  opt->command_sock_ = strdup("/var/run/door_daemon");
+  opt->command_sock_ = strdup("/var/run/door_daemon/cmd.sock");
 }
 
 void options_clear(options_t* opt)
@@ -238,8 +238,8 @@ void options_print_usage()
   printf("            [-L|--log] <target>:<level>[,<param1>[,<param2>..]]\n");
   printf("                                                add a log target, can be invoked several times\n");
 
-  printf("            [-d|--device] <tty device>          the device file e.g. /dev/ttyUSB0\n");
-  printf("            [-s|--command-sock] <unix sock>     the command socket e.g. /var/run/door_daemon\n");
+  printf("            [-d|--device] <tty device>          the device file e.g. /dev/door\n");
+  printf("            [-s|--command-sock] <unix sock>     the command socket e.g. /var/run/door_daemon/cmd.sock\n");
 }
 
 void options_print(options_t* opt)
