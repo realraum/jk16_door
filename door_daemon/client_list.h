@@ -21,10 +21,13 @@
 #ifndef _CLIENT_LIST_H_
 #define _CLIENT_LIST_H_
 
+#include "datatypes.h"
+
 struct client_struct {
   int fd;
   int status_listener;
   struct client_struct* next;
+  read_buffer_t buffer;
 };
 typedef struct client_struct client_t;
 

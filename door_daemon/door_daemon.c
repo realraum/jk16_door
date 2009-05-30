@@ -133,8 +133,10 @@ int send_response(int fd, const char* response)
   return ret;
 }
 
-int handle_command(const char* cmd, int fd, cmd_t** cmd_q, client_t* client_lst)
+int process_cmd(const char* cmd, int fd, cmd_t **cmd_q, client_t* client_lst)
 {
+  log_printf(DEBUG, "processing command from %d", fd);
+
   if(!cmd_q || !cmd)
     return -1;
   
@@ -195,77 +197,56 @@ int handle_command(const char* cmd, int fd, cmd_t** cmd_q, client_t* client_lst)
   return 0;
 }
 
-int process_cmd(int fd, cmd_t **cmd_q, client_t* client_lst)
+int process_door(const char* str, int door_fd, cmd_t **cmd_q, client_t* client_lst)
 {
-  log_printf(DEBUG, "processing command from %d", fd);
+  log_printf(NOTICE, "door-firmware: %s", str);
 
-  static char buffer[100];
+  int cmd_fd = -1;
+  if(cmd_q && (*cmd_q)) {
+    cmd_fd = (*cmd_q)->fd;
+    send_response(cmd_fd, str);
+  }
+  
+  if(!strncmp(str, "Status:", 7)) {
+    client_t* client;
+    for(client = client_lst; client; client = client->next)
+      if(client->status_listener && client->fd != cmd_fd)
+        send_response(client->fd, str);
+  }
+  
+  cmd_pop(cmd_q);
+
+  return 0;
+}
+
+int nonblock_readline(read_buffer_t buffer, int fd, cmd_t** cmd_q, client_t* client_lst, int (*cb)(const char*, int, cmd_t**, client_t*))
+{
   int ret = 0;
-  do { // TODO: replace this whith a actually working non-blocking-readline
-    memset(buffer, 0, 100);
-    ret = recv(fd, buffer, sizeof(buffer), 0);
+  u_int32_t offset = 0;
+  for(;;) {
+    ret = read(fd, &buffer[offset], 1);
     if(!ret)
-      return 1;
-    if(ret < 0)
-      return ret;
-
-    char* saveptr;
-    char* tok = strtok_r(buffer, "\n\r", &saveptr);
-    do {
-      if(!tok)
-        continue;
-
-      ret = handle_command(tok, fd, cmd_q, client_lst);
-      if(ret < 0)
-        return ret;
-    } while(tok = strtok_r(NULL, "\n\r", &saveptr));
-  } while (ret == -1 && errno == EINTR);
-    
-  return 0;
-}
-
-int process_door(int door_fd, cmd_t **cmd_q, client_t* client_lst)
-{
-  log_printf(DEBUG, "processing data from door (fd=%d)", door_fd);
-
-  static char buffer[100];
-  int ret = 0;
-  do { // TODO: replace this whith a actually working non-blocking-readline
-    memset(buffer, 0, 100);
-    ret = read(door_fd, buffer, sizeof(buffer));
-    if(!ret) 
       return 2;
-    if(ret < 0)
-      return ret;
+    else if(ret == -1 && errno == EAGAIN)
+      return 0;
+    else
+      break;
 
-    char* saveptr;
-    char* tok = strtok_r(buffer, "\n\r", &saveptr);
-    do {
-      if(!tok)
-        continue;
+    if(buffer[offset] == '\n') {
+      buffer[offset] = 0;
+      ret = (cb)(buffer, fd, cmd_q, client_lst);
+      break;
+    }
 
-      log_printf(NOTICE, "door-firmware: %s", tok);
+    offset++;
+    if(offset >= sizeof(buffer)) {
+      log_printf(DEBUG, "string too long (fd=%d)", fd);      
+      return 0;
+    }
+  }
 
-      int cmd_fd = -1;
-      if(cmd_q && (*cmd_q)) {
-        cmd_fd = (*cmd_q)->fd;
-        send_response(cmd_fd, tok);
-      }
-
-      if(!strncmp(tok, "Status:", 7)) {
-        client_t* client;
-        for(client = client_lst; client; client = client->next)
-          if(client->status_listener && client->fd != cmd_fd)
-            send_response(client->fd, tok);
-      }
-
-      cmd_pop(cmd_q);
-    } while(tok = strtok_r(NULL, "\n\r", &saveptr));
-  } while (ret == -1 && errno == EINTR);
-
-  return 0;
+  return ret;
 }
-
 
 int main_loop(int door_fd, int cmd_listen_fd)
 {
@@ -278,6 +259,8 @@ int main_loop(int door_fd, int cmd_listen_fd)
   int max_fd = door_fd > cmd_listen_fd ? door_fd : cmd_listen_fd;
   cmd_t* cmd_q = NULL;
   client_t* client_lst = NULL;
+
+  read_buffer_t door_buffer;
 
   int sig_fd = signal_init();
   if(sig_fd < 0)
@@ -304,7 +287,7 @@ int main_loop(int door_fd, int cmd_listen_fd)
     }
 
     if(FD_ISSET(door_fd, &tmpfds)) {
-      return_value = process_door(door_fd, &cmd_q, client_lst);
+      return_value = nonblock_readline(door_buffer, door_fd, &cmd_q, client_lst, process_door);
       if(return_value)
         break;
     }
@@ -319,14 +302,15 @@ int main_loop(int door_fd, int cmd_listen_fd)
       log_printf(DEBUG, "new command connection (fd=%d)", new_fd);
       FD_SET(new_fd, &readfds);
       max_fd = (max_fd < new_fd) ? new_fd : max_fd;
+      fcntl(new_fd, F_SETFL, O_NONBLOCK);
       client_add(&client_lst, new_fd);
     }
 
     client_t* lst = client_lst;
     while(lst) {
       if(FD_ISSET(lst->fd, &tmpfds)) {
-        return_value = process_cmd(lst->fd, &cmd_q, client_lst); 
-        if(return_value == 1) {
+        return_value = nonblock_readline(lst->buffer, lst->fd, &cmd_q, client_lst, process_cmd);
+        if(return_value == 2) {
           log_printf(DEBUG, "removing closed command connection (fd=%d)", lst->fd);
           client_t* deletee = lst;
           lst = lst->next;
@@ -503,7 +487,7 @@ int main(int argc, char* argv[])
   
   int door_fd = 0;
   for(;;) {
-    door_fd = open(opt.door_dev_, O_RDWR | O_NOCTTY);
+    door_fd = open(opt.door_dev_, O_RDWR | O_NOCTTY | O_NONBLOCK);
     if(door_fd < 0)
       ret = 2;
     else {
