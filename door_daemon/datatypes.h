@@ -39,6 +39,10 @@ struct buffer_struct {
 };
 typedef struct buffer_struct buffer_t;
 
-typedef char read_buffer_t[100];
+struct read_buffer_struct {
+  u_int32_t offset;
+  u_int8_t buf[100];
+};
+typedef struct read_buffer_struct read_buffer_t;
 
 #endif

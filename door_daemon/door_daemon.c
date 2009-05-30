@@ -166,7 +166,7 @@ int process_cmd(const char* cmd, int fd, cmd_t **cmd_q, client_t* client_lst)
   }
   else {
     log_printf(WARNING, "unknown command '%s'", cmd);
-    return 1;
+    return 0;
   }
   char* param = strchr(cmd, ' ');
   if(param) 
@@ -222,24 +222,23 @@ int process_door(const char* str, int door_fd, cmd_t **cmd_q, client_t* client_l
 int nonblock_readline(read_buffer_t buffer, int fd, cmd_t** cmd_q, client_t* client_lst, int (*cb)(const char*, int, cmd_t**, client_t*))
 {
   int ret = 0;
-  u_int32_t offset = 0;
   for(;;) {
-    ret = read(fd, &buffer[offset], 1);
+    ret = read(fd, &buffer.buf[buffer.offset], 1);
     if(!ret)
       return 2;
     else if(ret == -1 && errno == EAGAIN)
       return 0;
-    else
+    else if(ret < 0)
       break;
 
-    if(buffer[offset] == '\n') {
-      buffer[offset] = 0;
-      ret = (cb)(buffer, fd, cmd_q, client_lst);
+    if(buffer.buf[buffer.offset] == '\n') {
+      buffer.buf[buffer.offset] = 0;
+      ret = (cb)(buffer.buf, fd, cmd_q, client_lst);
       break;
     }
 
-    offset++;
-    if(offset >= sizeof(buffer)) {
+    buffer.offset++;
+    if(buffer.offset >= sizeof(buffer.buf)) {
       log_printf(DEBUG, "string too long (fd=%d)", fd);      
       return 0;
     }
@@ -261,6 +260,7 @@ int main_loop(int door_fd, int cmd_listen_fd)
   client_t* client_lst = NULL;
 
   read_buffer_t door_buffer;
+  door_buffer.offset = 0;
 
   int sig_fd = signal_init();
   if(sig_fd < 0)
