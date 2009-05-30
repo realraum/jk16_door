@@ -281,11 +281,13 @@ int main_loop(int door_fd, int cmd_listen_fd)
     if(!ret || ret == -1)
       continue;
 
-    if(signal_handle()) {
-      return_value = 1;
-      break;
+    if(FD_ISSET(sig_fd, &tmpfds)) {
+      if(signal_handle()) {
+        return_value = 1;
+        break;
+      }
     }
-
+   
     if(FD_ISSET(door_fd, &tmpfds)) {
       return_value = nonblock_readline(door_buffer, door_fd, &cmd_q, client_lst, process_door);
       if(return_value)
