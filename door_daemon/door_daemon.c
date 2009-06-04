@@ -219,27 +219,27 @@ int process_door(const char* str, int door_fd, cmd_t **cmd_q, client_t* client_l
   return 0;
 }
 
-int nonblock_readline(read_buffer_t buffer, int fd, cmd_t** cmd_q, client_t* client_lst, int (*cb)(const char*, int, cmd_t**, client_t*))
+int nonblock_readline(read_buffer_t* buffer, int fd, cmd_t** cmd_q, client_t* client_lst, int (*cb)(const char*, int, cmd_t**, client_t*))
 {
   int ret = 0;
   for(;;) {
-    ret = read(fd, &buffer.buf[buffer.offset], 1);
-    if(!ret)
-      return 2;
-    else if(ret == -1 && errno == EAGAIN)
+    ret = read(fd, &buffer->buf[buffer->offset], 1);
+    if(ret == -1 && errno == EAGAIN)
       return 0;
-    else if(ret < 0)
+    else if(ret <= 0)
       break;
 
-    if(buffer.buf[buffer.offset] == '\n') {
-      buffer.buf[buffer.offset] = 0;
-      ret = (cb)(buffer.buf, fd, cmd_q, client_lst);
+    if(buffer->buf[buffer->offset] == '\n') {
+      buffer->buf[buffer->offset] = 0;
+      ret = (cb)(buffer->buf, fd, cmd_q, client_lst);
+      buffer->offset = 0;
       break;
     }
 
-    buffer.offset++;
-    if(buffer.offset >= sizeof(buffer.buf)) {
-      log_printf(DEBUG, "string too long (fd=%d)", fd);      
+    buffer->offset++;
+    if(buffer->offset >= sizeof(buffer->buf)) {
+      log_printf(DEBUG, "string too long (fd=%d)", fd);
+      buffer->offset = 0;
       return 0;
     }
   }
@@ -289,7 +289,7 @@ int main_loop(int door_fd, int cmd_listen_fd)
     }
    
     if(FD_ISSET(door_fd, &tmpfds)) {
-      return_value = nonblock_readline(door_buffer, door_fd, &cmd_q, client_lst, process_door);
+      return_value = nonblock_readline(&door_buffer, door_fd, &cmd_q, client_lst, process_door);
       if(return_value)
         break;
     }
@@ -311,7 +311,7 @@ int main_loop(int door_fd, int cmd_listen_fd)
     client_t* lst = client_lst;
     while(lst) {
       if(FD_ISSET(lst->fd, &tmpfds)) {
-        return_value = nonblock_readline(lst->buffer, lst->fd, &cmd_q, client_lst, process_cmd);
+        return_value = nonblock_readline(&(lst->buffer), lst->fd, &cmd_q, client_lst, process_cmd);
         if(return_value == 2) {
           log_printf(DEBUG, "removing closed command connection (fd=%d)", lst->fd);
           client_t* deletee = lst;
