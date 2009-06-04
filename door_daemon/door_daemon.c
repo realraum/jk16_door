@@ -305,18 +305,29 @@ int main_loop(int door_fd, int cmd_listen_fd)
   FD_SET(sig_fd, &readfds);
   max_fd = (max_fd < sig_fd) ? sig_fd : max_fd;
 
+  struct timeval timeout;
   int return_value = 0;
   while(!return_value) {
     memcpy(&tmpfds, &readfds, sizeof(tmpfds));
 
-    int ret = select(max_fd+1, &tmpfds, NULL, NULL, NULL);
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 200000;
+    int ret = select(max_fd+1, &tmpfds, NULL, NULL, &timeout);
     if(ret == -1 && errno != EINTR) {
       log_printf(ERROR, "select returned with error: %s", strerror(errno));
       return_value = -1;
       break;
     }
-    if(!ret || ret == -1)
+    if(ret == -1)
       continue;
+    if(!ret) {
+      if(cmd_q && cmd_has_expired(*cmd_q)) {
+        log_printf(ERROR, "last command expired");
+        cmd_pop(&cmd_q);
+      }
+      else
+        continue;
+    }
 
     if(FD_ISSET(sig_fd, &tmpfds)) {
       if(signal_handle()) {

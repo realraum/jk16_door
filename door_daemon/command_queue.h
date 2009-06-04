@@ -21,6 +21,8 @@
 #ifndef _COMMAND_QUEUE_H_
 #define _COMMAND_QUEUE_H_
 
+#include <sys/time.h>
+
 enum cmd_id_enum { OPEN, CLOSE, TOGGLE, RESET, STATUS, LOG };
 typedef enum cmd_id_enum cmd_id_t;
 
@@ -29,11 +31,13 @@ struct cmd_struct {
   cmd_id_t cmd;
   char* param;
   int sent;
+  struct timeval tv_start;
   struct cmd_struct* next;
 };
 typedef struct cmd_struct cmd_t;
 
 int cmd_push(cmd_t** first, int fd, cmd_id_t cmd, const char* param);
+int cmd_has_expired(const cmd_t cmd);
 void cmd_pop(cmd_t** first);
 void cmd_clear(cmd_t** first);
 
