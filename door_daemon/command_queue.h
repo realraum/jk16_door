@@ -38,7 +38,7 @@ typedef struct cmd_struct cmd_t;
 
 int cmd_push(cmd_t** first, int fd, cmd_id_t cmd, const char* param);
 void cmd_sent(cmd_t* cmd);
-int cmd_has_expired(const cmd_t cmd);
+int cmd_has_expired(cmd_t cmd);
 void cmd_pop(cmd_t** first);
 void cmd_clear(cmd_t** first);
 

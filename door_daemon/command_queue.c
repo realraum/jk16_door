@@ -80,18 +80,14 @@ void cmd_sent(cmd_t* cmd)
   gettimeofday(&cmd->tv_start, NULL);
 }
 
-// timeout between 1 and 2 seconds
-int cmd_has_expired(const cmd_t cmd)
+int cmd_has_expired(cmd_t cmd)
 {
   struct timeval now;
-  now.tv_sec = 2;
-  now.tv_usec = 0;
+  timerclear(&now);
   gettimeofday(&now, NULL);
-  
-  if(cmd.tv_start.tv_sec + 2 >= now.tv_sec)
-    return 1;
-  
-  return 0;
+  cmd.tv_start.tv_sec++;
+
+  return timercmp(&cmd.tv_start, &now, <);
 }
 
 void cmd_pop(cmd_t** first)
