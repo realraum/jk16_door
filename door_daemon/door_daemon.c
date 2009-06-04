@@ -230,11 +230,24 @@ int nonblock_recvline(read_buffer_t* buffer, int fd, cmd_t** cmd_q, client_t* cl
 int process_door(read_buffer_t* buffer, int door_fd, cmd_t **cmd_q, client_t* client_lst)
 {
   int ret = 0;
+  struct timeval tv;
+  fd_set fds;
+  FD_ZERO(&fds);
+  FD_SET(door_fd, &fds);
+
   for(;;) {
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    ret = select(door_fd+1, &fds, NULL, NULL, &tv);
+    if(!ret)
+      return 0;
+
     ret = read(door_fd, &buffer->buf[buffer->offset], 1);
+    if(!ret)
+      return 2;
     if(ret == -1 && errno == EAGAIN)
       return 0;
-    else if(ret <= 0)
+    else if(ret < 0)
       break;
 
     if(buffer->buf[buffer->offset] == '\n') {
@@ -513,7 +526,7 @@ int main(int argc, char* argv[])
   
   int door_fd = 0;
   for(;;) {
-    door_fd = open(opt.door_dev_, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    door_fd = open(opt.door_dev_, O_RDWR | O_NOCTTY);
     if(door_fd < 0)
       ret = 2;
     else {
