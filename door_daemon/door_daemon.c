@@ -95,7 +95,7 @@ int send_command(int door_fd, cmd_t* cmd)
   } while(!ret || (ret == -1 && errno == EINTR));
 
   if(ret > 0) {
-    cmd->sent = 1;
+    cmd_sent(cmd);
     return 0;
   }
 

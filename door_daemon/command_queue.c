@@ -59,7 +59,6 @@ int cmd_push(cmd_t** first, int fd, cmd_id_t cmd, const char* param)
   new_cmd->sent = 0;
   new_cmd->tv_start.tv_sec = 0;
   new_cmd->tv_start.tv_usec = 0;
-  gettimeofday(&new_cmd->tv_start, NULL);
   new_cmd->next = NULL;
 
   if(!(*first)) {
@@ -70,6 +69,15 @@ int cmd_push(cmd_t** first, int fd, cmd_id_t cmd, const char* param)
   cmd_get_last(*first)->next = new_cmd;
 
   return 0;
+}
+
+void cmd_sent(cmd_t* cmd)
+{
+  if(!cmd)
+    return;
+
+  cmd->sent = 1;
+  gettimeofday(&cmd->tv_start, NULL);
 }
 
 // timeout between 1 and 2 seconds
