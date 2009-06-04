@@ -197,41 +197,21 @@ int process_cmd(const char* cmd, int fd, cmd_t **cmd_q, client_t* client_lst)
   return 0;
 }
 
-int process_door(const char* str, int door_fd, cmd_t **cmd_q, client_t* client_lst)
-{
-  log_printf(NOTICE, "door-firmware: %s", str);
-
-  int cmd_fd = -1;
-  if(cmd_q && (*cmd_q)) {
-    cmd_fd = (*cmd_q)->fd;
-    send_response(cmd_fd, str);
-  }
-  
-  if(!strncmp(str, "Status:", 7)) {
-    client_t* client;
-    for(client = client_lst; client; client = client->next)
-      if(client->status_listener && client->fd != cmd_fd)
-        send_response(client->fd, str);
-  }
-  
-  cmd_pop(cmd_q);
-
-  return 0;
-}
-
-int nonblock_readline(read_buffer_t* buffer, int fd, cmd_t** cmd_q, client_t* client_lst, int (*cb)(const char*, int, cmd_t**, client_t*))
+int nonblock_recvline(read_buffer_t* buffer, int fd, cmd_t** cmd_q, client_t* client_lst)
 {
   int ret = 0;
   for(;;) {
-    ret = read(fd, &buffer->buf[buffer->offset], 1);
+    ret = recv(fd, &buffer->buf[buffer->offset], 1, 0);
+    if(!ret)
+      return 2;
     if(ret == -1 && errno == EAGAIN)
       return 0;
-    else if(ret <= 0)
+    else if(ret < 0)
       break;
 
     if(buffer->buf[buffer->offset] == '\n') {
       buffer->buf[buffer->offset] = 0;
-      ret = (cb)(buffer->buf, fd, cmd_q, client_lst);
+      ret = process_cmd(buffer->buf, fd, cmd_q, client_lst);
       buffer->offset = 0;
       break;
     }
@@ -239,6 +219,50 @@ int nonblock_readline(read_buffer_t* buffer, int fd, cmd_t** cmd_q, client_t* cl
     buffer->offset++;
     if(buffer->offset >= sizeof(buffer->buf)) {
       log_printf(DEBUG, "string too long (fd=%d)", fd);
+      buffer->offset = 0;
+      return 0;
+    }
+  }
+
+  return ret;
+}
+
+int process_door(read_buffer_t* buffer, int door_fd, cmd_t **cmd_q, client_t* client_lst)
+{
+  int ret = 0;
+  for(;;) {
+    ret = read(door_fd, &buffer->buf[buffer->offset], 1);
+    if(ret == -1 && errno == EAGAIN)
+      return 0;
+    else if(ret <= 0)
+      break;
+
+    if(buffer->buf[buffer->offset] == '\n') {
+      buffer->buf[buffer->offset] = 0;
+
+      log_printf(NOTICE, "door-firmware: %s", buffer->buf);      
+
+      int cmd_fd = -1;
+      if(cmd_q && (*cmd_q)) {
+        cmd_fd = (*cmd_q)->fd;
+        send_response(cmd_fd, buffer->buf);
+      }
+      
+      if(!strncmp(buffer->buf, "Status:", 7)) {
+        client_t* client;
+        for(client = client_lst; client; client = client->next)
+          if(client->status_listener && client->fd != cmd_fd)
+            send_response(client->fd, buffer->buf);
+      }
+      
+      cmd_pop(cmd_q);
+      buffer->offset = 0;
+      return 0;
+    }
+
+    buffer->offset++;
+    if(buffer->offset >= sizeof(buffer->buf)) {
+      log_printf(DEBUG, "string too long (fd=%d)", door_fd);
       buffer->offset = 0;
       return 0;
     }
@@ -289,7 +313,7 @@ int main_loop(int door_fd, int cmd_listen_fd)
     }
    
     if(FD_ISSET(door_fd, &tmpfds)) {
-      return_value = nonblock_readline(&door_buffer, door_fd, &cmd_q, client_lst, process_door);
+      return_value = process_door(&door_buffer, door_fd, &cmd_q, client_lst);
       if(return_value)
         break;
     }
@@ -311,7 +335,7 @@ int main_loop(int door_fd, int cmd_listen_fd)
     client_t* lst = client_lst;
     while(lst) {
       if(FD_ISSET(lst->fd, &tmpfds)) {
-        return_value = nonblock_readline(&(lst->buffer), lst->fd, &cmd_q, client_lst, process_cmd);
+        return_value = nonblock_recvline(&(lst->buffer), lst->fd, &cmd_q, client_lst);
         if(return_value == 2) {
           log_printf(DEBUG, "removing closed command connection (fd=%d)", lst->fd);
           client_t* deletee = lst;
