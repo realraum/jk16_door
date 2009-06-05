@@ -241,6 +241,8 @@ int process_door(read_buffer_t* buffer, int door_fd, cmd_t **cmd_q, client_t* cl
     ret = select(door_fd+1, &fds, NULL, NULL, &tv);
     if(!ret)
       return 0;
+    else if(ret < 0)
+      return ret;
 
     ret = read(door_fd, &buffer->buf[buffer->offset], 1);
     if(!ret)
