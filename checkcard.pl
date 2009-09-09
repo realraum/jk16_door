@@ -3,9 +3,8 @@
 use Socket;
 use strict;
 my $fh;
-#my $fifofile = "/tmp/door_cmd.fifo";
 
-my $socketfile = "/tmp/door_cmd.socket";
+my $socketfile = $ARGV[0] || "/var/run/tuer/door_cmd.socket";
 sleep(1) while (! -S $socketfile);
 my $socketaddr = sockaddr_un($socketfile);
 
@@ -32,7 +31,7 @@ sub send_to_fifo
 
 while (sleep 1)
 {
-	open $fh,'/flash/tuer_python/mifare-read 0 2>&1 |';
+	open $fh,'/flash/tuer/mifare-read 0 2>&1 |';
 	while (<$fh>)
 	{
 		next unless /UID/;
