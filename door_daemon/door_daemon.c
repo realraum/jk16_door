@@ -38,7 +38,6 @@
 #include "client_list.h"
 
 #include "daemon.h"
-#include "sysexec.h"
 
 int init_command_socket(const char* path)
 {

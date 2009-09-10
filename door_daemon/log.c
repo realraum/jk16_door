@@ -250,7 +250,7 @@ void log_print_hex_dump(log_prio_t prio, const u_int8_t* buf, u_int32_t len)
     for(i=0; i < len; i++) {
       if(((i+1)*3) >= (MSG_LENGTH_MAX - offset))
         break;
-      sprintf(ptr, "%02X ", buf[i]);
+      snprintf(ptr, 3, "%02X ", buf[i]);
       ptr+=3;
     }
   }
