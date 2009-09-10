@@ -288,6 +288,9 @@ int process_door(read_buffer_t* buffer, int door_fd, cmd_t **cmd_q, client_t* cl
     if(buffer->buf[buffer->offset] == '\n') {
       buffer->buf[buffer->offset] = 0;
 
+      if(buffer->offset > 0 && buffer->buf[buffer->offset-1] == '\r')
+        buffer->buf[buffer->offset-1] = 0;
+
       log_printf(NOTICE, "door-firmware: %s", buffer->buf);      
 
       int cmd_fd = -1;
