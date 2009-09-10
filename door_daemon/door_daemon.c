@@ -154,15 +154,7 @@ int process_cmd(const char* cmd, int fd, cmd_t **cmd_q, client_t* client_lst)
   else if(!strncmp(cmd, "log", 3))
     cmd_id = LOG;
   else if(!strncmp(cmd, "listen", 6)) {
-    client_t* listener = client_find(client_lst, fd);
-    if(listener) {
-      log_printf(DEBUG, "adding status listener %d", fd);
-      listener->status_listener = 1;
-    }
-    else       
-      log_printf(ERROR, "unable to add status listener %d", fd);
-
-    return 0;
+    cmd_id = LISTEN;
   }
   else {
     log_printf(WARNING, "unknown command '%s'", cmd);
@@ -171,6 +163,21 @@ int process_cmd(const char* cmd, int fd, cmd_t **cmd_q, client_t* client_lst)
   char* param = strchr(cmd, ' ');
   if(param) 
     param++;
+
+  if(cmd_id == OPEN || cmd_id == CLOSE || cmd_id == TOGGLE) {
+    char* resp;
+    asprintf(&resp, "Request: %s", cmd);
+    if(resp) {
+      char* linefeed = strchr(resp, '\n');
+      if(linefeed) linefeed[0] = 0;
+      client_t* client;
+      for(client = client_lst; client; client = client->next)
+        if(client->request_listener && client->fd != fd)
+          send_response(client->fd, resp);
+      free(resp);
+    }
+// else silently ignore memory alloc error
+  }
 
   switch(cmd_id) {
   case OPEN:
@@ -190,6 +197,33 @@ int process_cmd(const char* cmd, int fd, cmd_t **cmd_q, client_t* client_lst)
       log_printf(NOTICE, "ext msg: %s", param); 
     else
       log_printf(DEBUG, "ignoring empty ext log message");
+    break;
+  }
+  case LISTEN: {
+    client_t* listener = client_find(client_lst, fd);
+    if(listener) {
+      if(!param) {
+        listener->status_listener = 1;
+        listener->error_listener = 1;      
+        listener->request_listener = 1;
+      }
+      else {
+        if(!strncmp(param, "status", 6))
+          listener->status_listener = 1;
+        else if(!strncmp(param, "error", 5))
+          listener->error_listener = 1;      
+        else if(!strncmp(param, "request", 7))
+          listener->request_listener = 1;
+        else {
+          log_printf(DEBUG, "unkown listener type '%s'", param);
+          break;
+        }
+      }
+      log_printf(DEBUG, "listener %d requests %s messages", fd, param ? param:"all");
+    }
+    else {
+      log_printf(ERROR, "unable to add listener %d", fd);
+    }
     break;
   }
   }
@@ -267,6 +301,13 @@ int process_door(read_buffer_t* buffer, int door_fd, cmd_t **cmd_q, client_t* cl
         client_t* client;
         for(client = client_lst; client; client = client->next)
           if(client->status_listener && client->fd != cmd_fd)
+            send_response(client->fd, buffer->buf);
+      }
+
+      if(!strncmp(buffer->buf, "Error:", 6)) {
+        client_t* client;
+        for(client = client_lst; client; client = client->next)
+          if(client->error_listener && client->fd != cmd_fd)
             send_response(client->fd, buffer->buf);
       }
       

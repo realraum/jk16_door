@@ -26,6 +26,8 @@
 struct client_struct {
   int fd;
   int status_listener;
+  int error_listener;
+  int request_listener;
   struct client_struct* next;
   read_buffer_t buffer;
 };

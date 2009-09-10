@@ -46,6 +46,8 @@ int client_add(client_t** first, int fd)
 
   new_client->fd = fd;
   new_client->status_listener = 0;
+  new_client->error_listener = 0;
+  new_client->request_listener = 0;
   new_client->next = NULL;
   new_client->buffer.offset = 0;
 

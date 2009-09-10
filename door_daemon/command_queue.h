@@ -23,7 +23,7 @@
 
 #include <sys/time.h>
 
-enum cmd_id_enum { OPEN, CLOSE, TOGGLE, RESET, STATUS, LOG };
+enum cmd_id_enum { OPEN, CLOSE, TOGGLE, RESET, STATUS, LOG , LISTEN };
 typedef enum cmd_id_enum cmd_id_t;
 
 struct cmd_struct {
