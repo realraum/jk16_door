@@ -170,10 +170,14 @@ int process_cmd(const char* cmd, int fd, cmd_t **cmd_q, client_t* client_lst)
       char* linefeed = strchr(resp, '\n');
       if(linefeed) linefeed[0] = 0;
       client_t* client;
+      int listener_cnt = 0;
       for(client = client_lst; client; client = client->next)
-        if(client->request_listener && client->fd != fd)
+        if(client->request_listener && client->fd != fd) {
           send_response(client->fd, resp);
+          listener_cnt++;
+        }
       free(resp);
+      log_printf(DEBUG, "sent request to %d listeners", listener_cnt);
     }
 // else silently ignore memory alloc error
   }
@@ -301,16 +305,24 @@ int process_door(read_buffer_t* buffer, int door_fd, cmd_t **cmd_q, client_t* cl
       
       if(!strncmp(buffer->buf, "Status:", 7)) {
         client_t* client;
+        int listener_cnt = 0;
         for(client = client_lst; client; client = client->next)
-          if(client->status_listener && client->fd != cmd_fd)
+          if(client->status_listener && client->fd != cmd_fd) {
             send_response(client->fd, buffer->buf);
+            listener_cnt++;
+          }
+        log_printf(DEBUG, "sent status to %d listeners", listener_cnt);
       }
 
       if(!strncmp(buffer->buf, "Error:", 6)) {
         client_t* client;
+        int listener_cnt = 0;
         for(client = client_lst; client; client = client->next)
-          if(client->error_listener && client->fd != cmd_fd)
+          if(client->error_listener && client->fd != cmd_fd) {
             send_response(client->fd, buffer->buf);
+            listener_cnt++;
+          }
+        log_printf(DEBUG, "sent error to %d listeners", listener_cnt);
       }
       
       cmd_pop(cmd_q);
