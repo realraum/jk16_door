@@ -177,7 +177,7 @@ int process_cmd(const char* cmd, int fd, cmd_t **cmd_q, client_t* client_lst)
           listener_cnt++;
         }
       free(resp);
-      log_printf(DEBUG, "sent request to %d listeners", listener_cnt);
+      log_printf(DEBUG, "sent request to %d additional listeners", listener_cnt);
     }
 // else silently ignore memory alloc error
   }
@@ -311,7 +311,7 @@ int process_door(read_buffer_t* buffer, int door_fd, cmd_t **cmd_q, client_t* cl
             send_response(client->fd, buffer->buf);
             listener_cnt++;
           }
-        log_printf(DEBUG, "sent status to %d listeners", listener_cnt);
+        log_printf(DEBUG, "sent status to %d additional listeners", listener_cnt);
       }
 
       if(!strncmp(buffer->buf, "Error:", 6)) {
@@ -322,7 +322,7 @@ int process_door(read_buffer_t* buffer, int door_fd, cmd_t **cmd_q, client_t* cl
             send_response(client->fd, buffer->buf);
             listener_cnt++;
           }
-        log_printf(DEBUG, "sent error to %d listeners", listener_cnt);
+        log_printf(DEBUG, "sent error to %d additional listeners", listener_cnt);
       }
       
       cmd_pop(cmd_q);
