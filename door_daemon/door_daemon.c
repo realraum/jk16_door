@@ -111,7 +111,7 @@ int send_response(int fd, const char* response)
   int offset = 0;
   int ret;
   for(;;) {
-    ret = write(fd, &response[offset], strlen(response) - offset);
+    ret = write(fd, &response[offset], len - offset);
     if(ret < 0) {
       if(errno != EINTR)
         return ret;
