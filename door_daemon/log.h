@@ -33,8 +33,8 @@
  *  along with uAnytun. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LOG_H_
-#define _LOG_H_
+#ifndef UANYUTN_log_h_INCLUDED
+#define UANYUTN_log_h_INCLUDED
 
 #define MSG_LENGTH_MAX 150
 

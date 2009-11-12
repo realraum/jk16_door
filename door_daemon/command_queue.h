@@ -19,8 +19,8 @@
  *  along with door_daemon. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _COMMAND_QUEUE_H_
-#define _COMMAND_QUEUE_H_
+#ifndef DOOR_DAEMON_command_queue_h_INCLUDED
+#define DOOR_DAEMON_command_queue_h_INCLUDED
 
 #include <sys/time.h>
 

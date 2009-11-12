@@ -26,12 +26,12 @@ endif
 EXECUTABLE := door_daemon
 
 OBJ := log.o \
-      sig_handler.o \
-      options.o \
-      string_list.o \
-      command_queue.o \
-      client_list.o \
-      door_daemon.o
+       sig_handler.o \
+       options.o \
+       string_list.o \
+       command_queue.o \
+       client_list.o \
+       door_daemon.o
 
 
 SRC := $(OBJ:%.o=%.c)
@@ -41,10 +41,10 @@ SRC := $(OBJ:%.o=%.c)
 all: $(EXECUTABLE)
 
 %.d: %.c
-	@set -e; rm -f $@; \
-	 $(CC) -MM $(CFLAGS) $< > $@.$$$$; \
-   sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-   rm -f $@.$$$$; echo '(re)building $@'
+	@set -e; rm -f $@;                                 	 \
+  $(CC) -MM $(CFLAGS) $< > $@.$$$$;                  	 \
+  sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@;	 \
+  rm -f $@.$$$$; echo '(re)building $@'
 
 ifneq ($(MAKECMDGOALS),distclean)
 -include $(SRC:%.c=%.d)

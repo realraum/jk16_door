@@ -33,10 +33,8 @@
  *  along with uAnytun. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SIG_HANDLER_H_
-#define _SIG_HANDLER_H_
-
-#include <signal.h>
+#ifndef UANYUTN_sig_handler_h_INCLUDED
+#define UANYUTN_sig_handler_h_INCLUDED
 
 int signal_init();
 int signal_handle();

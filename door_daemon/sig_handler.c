@@ -121,7 +121,7 @@ int signal_handle()
 
   int return_value = 0;
   int sig;
-  for(sig=1; sig < _NSIG; ++sig) {
+  for(sig=1; sig < NSIG; ++sig) {
     if(sigismember(&set, sig)) {
       switch(sig) {
       case SIGINT: log_printf(NOTICE, "SIG-Int caught, exitting"); return_value = 1; break;

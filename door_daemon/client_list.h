@@ -19,8 +19,8 @@
  *  along with door_daemon. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _CLIENT_LIST_H_
-#define _CLIENT_LIST_H_
+#ifndef DOOR_DAEMON_client_list_h_INCLUDED
+#define DOOR_DAEMON_client_list_h_INCLUDED
 
 #include "datatypes.h"
 

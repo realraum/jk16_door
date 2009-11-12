@@ -19,8 +19,8 @@
  *  along with door_daemon. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _OPTIONS_H_
-#define _OPTIONS_H_
+#ifndef DOOR_DAEMON_options_h_INCLUDED
+#define DOOR_DAEMON_options_h_INCLUDED
 
 #include "string_list.h"
 

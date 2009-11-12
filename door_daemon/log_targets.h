@@ -33,6 +33,9 @@
  *  along with uAnytun. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef UANYUTN_log_targets_h_INCLUDED
+#define UANYUTN_log_targets_h_INCLUDED
+
 #include <time.h>
 
 static char* get_time_formatted()
@@ -356,3 +359,5 @@ log_target_t* log_target_stderr_new()
 
   return tmp;
 }
+
+#endif

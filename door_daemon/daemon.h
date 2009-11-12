@@ -33,8 +33,8 @@
  *  along with uAnytun. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _DAEMON_H_
-#define _DAEMON_H_
+#ifndef UANYUTN_daemon_h_INCLUDED
+#define UANYUTN_daemon_h_INCLUDED
 
 #include <poll.h>
 #include <fcntl.h>
