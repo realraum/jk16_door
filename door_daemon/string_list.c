@@ -92,8 +92,8 @@ int string_list_add(string_list_t* list, const char* string)
     tmp->next_->next_ = 0;
     tmp->next_->string_ = strdup(string);
     if(!tmp->next_->string_) {
-      free(list->first_);
-      list->first_ = NULL;
+      free(tmp->next_);
+      tmp->next_ = NULL;
       return -2;
     }
   }
