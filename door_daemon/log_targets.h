@@ -33,8 +33,8 @@
  *  along with uAnytun. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UANYUTN_log_targets_h_INCLUDED
-#define UANYUTN_log_targets_h_INCLUDED
+#ifndef UANYTUN_log_targets_h_INCLUDED
+#define UANYTUN_log_targets_h_INCLUDED
 
 #include <time.h>
 

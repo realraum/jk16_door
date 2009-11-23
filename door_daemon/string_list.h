@@ -33,8 +33,8 @@
  *  along with uAnytun. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UANYUTN_string_list_h_INCLUDED
-#define UANYUTN_string_list_h_INCLUDED
+#ifndef UANYTUN_string_list_h_INCLUDED
+#define UANYTUN_string_list_h_INCLUDED
 
 struct string_list_element_struct {
   char* string_;
