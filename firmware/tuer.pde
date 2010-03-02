@@ -112,6 +112,7 @@ void start_debounce_timer()  // this breaks millis() function, but who cares
   TCCR0A = 0;         // no prescaler, WGM = 0 (normal)
   TCCR0B = 1<<CS00;   // 
   OCR0A = 255;        // 1+255 = 256 -> 16us @ 16 MHz
+  //OCR0A = 255;        // 1+255 = 256 -> 12.8us @ 20 MHz
   TCNT0 = 0;          // reseting timer
   TIMSK0 = 1<<OCF0A;  // enable Interrupt
 
@@ -281,6 +282,7 @@ void start_step_timer()
   TCCR1A = 0;                    // prescaler 1:256, WGM = 4 (CTC)
   TCCR1B = 1<<WGM12 | 1<<CS12;   // 
   OCR1A = 124;        // (1+124)*256 = 32000 -> 2 ms @ 16 MHz
+  //OCR1A = 155;        // (1+155)*256 = 40000 -> 2 ms @ 20 MHz
   TCNT1 = 0;          // reseting timer
   TIMSK1 = 1<<OCIE1A; // enable Interrupt
 }
@@ -291,6 +293,7 @@ void start_wait_timer()
   TCCR1A = 0;         // prescaler 1:256, WGM = 0 (normal)
   TCCR1B = 1<<CS12;   // 
   OCR1A = 15624;      // (1+15624)*256 = 4000000 -> 250 ms @ 16 MHz
+  //OCR1A = 19530;      // (1+19530)*256 = 5000000 -> 250 ms @ 20 MHz  
   TCNT1 = 0;          // reseting timer
   TIMSK1 = 1<<OCIE1A; // enable Interrupt
 }
@@ -301,6 +304,7 @@ void start_error_timer()
   TCCR1A = 0;                  // prescaler 1:256, WGM = 4 (CTC)
   TCCR1B = 1<<WGM12 | 1<<CS12; // 
   OCR1A = 31249;      // (1+31249)*256 = 8000000 -> 500 ms @ 16 MHz
+  //OCR1A = 39061;      // (1+39061)*256 = 10000000 -> 500 ms @ 20 MHz
   TCNT1 = 0;          // reseting timer
   TIMSK1 = 1<<OCIE1A; // enable Interrupt
 }
@@ -423,6 +427,7 @@ void init_heartbeat()
   TCCR2A = 1<<WGM21;                    // prescaler 1:1024, WGM = 2 (CTC)
   TCCR2B = 1<<CS22 | 1<<CS21 | 1<<CS20; // 
   OCR2A = 155;        // (1+155)*1024 = 159744 -> ~10 ms @ 16 MHz
+  //OCR2A = 194;        // (1+194)*1024 = 199680 -> ~10 ms @ 20 MHz
   TCNT2 = 0;          // reseting timer
   TIMSK2 = 1<<OCIE2A; // enable Interrupt
   heartbeat_on();

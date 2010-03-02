@@ -1,12 +1,15 @@
 ## see README file
 
 TARGET = tuer
-INSTALL_DIR = /home/realraum/tuer_svn/firmware/arduino
+INSTALL_DIR = $(PWD)/arduino
 PORT = /dev/ttyUSB0
-UPLOAD_RATE = 19200
+#UPLOAD_RATE = 19200
+UPLOAD_RATE = 57600
 AVRDUDE_PROGRAMMER = stk500v1
-MCU = atmega168
-F_CPU = 16000000
+#MCU = atmega168
+MCU = atmega328p
+#F_CPU = 16000000
+F_CPU = 16000000L
 
 ############################################################################
 # Below here nothing should be changed...
