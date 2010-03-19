@@ -2,7 +2,7 @@
 
 TARGET = tuer
 INSTALL_DIR = $(PWD)/arduino
-PORT = /dev/ttyUSB0
+PORT = /dev/door
 #UPLOAD_RATE = 19200
 UPLOAD_RATE = 57600
 AVRDUDE_PROGRAMMER = stk500v1
