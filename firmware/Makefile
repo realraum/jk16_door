@@ -14,6 +14,8 @@ F_CPU = 16000000L
 ############################################################################
 # Below here nothing should be changed...
 
+RESET_TTY_DIR=../reset_tty/
+RESET_TTY=$(RESET_TTY_DIR)reset_tty
 ARDUINO = $(INSTALL_DIR)/hardware/cores/arduino
 AVR_TOOLS_PATH = /usr/bin
 SRC =  $(ARDUINO)/pins_arduino.c $(ARDUINO)/wiring.c \
@@ -116,9 +118,12 @@ lss: applet/$(TARGET).lss
 sym: applet/$(TARGET).sym
 
 # Program the device.  
-upload: applet/$(TARGET).hex
+upload: applet/$(TARGET).hex $(RESET_TTY)
+	$(RESET_TTY) $(PORT) 
 	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH)
 
+$(RESET_TTY):
+	make -C $(RESET_TTY_DIR)
 
 	# Display size of file.
 HEXSIZE = $(SIZE) --target=$(FORMAT) applet/$(TARGET).hex
