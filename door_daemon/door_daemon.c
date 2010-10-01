@@ -431,7 +431,8 @@ int main_loop(int door_fd, int cmd_listen_fd)
           break;
 
       }
-      lst = lst->next;
+      if(lst)
+        lst = lst->next;
     }
 
     if(cmd_q && !cmd_q->sent)
