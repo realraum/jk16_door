@@ -47,9 +47,14 @@ while (sleep 1)
 
   read_keys() unless ($keys_last_read == -M ($keysfile));
 
-	while (<$fh>)
+  READLOOP: while (<$fh>)
 	{
-		next unless /UID/;
+		unless (/UID/)
+    {
+      close($fh);
+      system("/flash/tuer/reset_openpcd.sh");
+      last READLOOP;
+    }
 		my ($id) = /UID=(\S+)\s+/;
 		if ($good{$id})
 		{
