@@ -41,18 +41,21 @@ sub send_to_fifo
 read_keys();
 
 
-while (sleep 1)
+while (sleep 2)
 {
+  send_to_fifo("log starting mifare-read");
 	open $fh,'/flash/tuer/mifare-read 0 2>&1 |';
 
   read_keys() unless ($keys_last_read == -M ($keysfile));
 
   READLOOP: while (<$fh>)
-	{
+  while (<$fh>)
+	{		
 		unless (/UID/)
     {
       close($fh);
-      system("/flash/tuer/reset_openpcd.sh");
+      system("/usr/bin/killall -9 mifare-read");
+			send_to_fifo("log restarting mifare-read after invalid output");
       last READLOOP;
     }
 		my ($id) = /UID=(\S+)\s+/;
