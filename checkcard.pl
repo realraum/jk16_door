@@ -49,7 +49,6 @@ while (sleep 2)
   read_keys() unless ($keys_last_read == -M ($keysfile));
 
   READLOOP: while (<$fh>)
-  while (<$fh>)
 	{		
 		unless (/UID/)
     {
