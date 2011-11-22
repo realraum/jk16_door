@@ -549,6 +549,7 @@ void setup()
     current_state = CLOSING;
     start_step_timer();
   }
+  Serial.println("init complete");
 }
 
 void loop()
@@ -564,8 +565,8 @@ void loop()
     }
     else if (command == CMD_OPEN) {
       if(current_state == IDLE) {
-	if(is_opened())
-	  Serial.println("Already open");
+        if(is_opened())
+          Serial.println("Already open");
         else {
           start_open();
           Serial.println("Ok");
@@ -576,8 +577,8 @@ void loop()
     }
     else if (command == CMD_CLOSE) {
       if(current_state == IDLE) {
-	if(is_closed())
-	  Serial.println("Already closed");
+        if(is_closed())
+          Serial.println("Already closed");
         else {
           start_close();
           Serial.println("Ok");
@@ -588,11 +589,11 @@ void loop()
     }
     else if (command == CMD_TOGGLE) {
       if(current_state == IDLE) {
-	if(is_closed())
-	  start_open();
-	else
-	  start_close();
-	Serial.println("Ok");
+        if(is_closed())
+          start_open();
+        else
+          start_close();
+        Serial.println("Ok");
       }
       else
         Serial.println("Error: Operation in progress");

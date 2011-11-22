@@ -3,6 +3,8 @@
 
 
  Messages:
+  after reset:
+   init complete
 
   manual open key pressed:
    open forced manually
@@ -24,14 +26,14 @@
   t ... toggle
    responce: "Ok", "Error: .*"
   s ... status
-   response: "Status: closed|opened|<->, opening|waiting|closing|idle"
+   response: "Status: closed|opened|<->, opening|waiting|closing|idle, ajar|shut"
          or  "Error: .*"
   r ... reset
    "Ok, closing now" or "Error: .*"
   * ... everything else
    Error: unknown command
 
- open/close  will only be accepted if Status: ..., idle
+ open/close  will only be accepted if Status: ..., idle, ...
              otherwise response: Error: Operation in progress
 
  unless error case s will always be accepted
