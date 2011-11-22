@@ -20,6 +20,8 @@ byte next_led = 0;
 #define LIMIT_OPENED_PIN 18 // A4: limit switch for open
 #define LIMIT_CLOSED_PIN 19 // A5: limit switch for close
 
+#define AJAR_PIN 14 // input pin for reed relais (door ajar/shut)
+
 #define MANUAL_OPEN_PIN 12  // keys for manual open and close
 #define MANUAL_CLOSE_PIN 13 // 
 #define DEBOUNCE_DELAY 6250  // * 16us = 100ms
@@ -70,6 +72,22 @@ boolean is_opened()
 boolean is_closed()
 {
   if(digitalRead(LIMIT_CLOSED_PIN))
+     return false;
+     
+  return true;
+}
+
+//**********//
+
+void init_ajar()
+{
+  pinMode(AJAR_PIN, INPUT);      // set pin to input
+  digitalWrite(AJAR_PIN, HIGH);  // turn on pullup resistors  
+}
+
+boolean get_ajar_status()  // shut = true, ajar = false
+{
+  if(digitalRead(AJAR_PIN))
      return false;
      
   return true;
@@ -369,7 +387,11 @@ ISR(TIMER1_COMPA_vect)
       Serial.print("opened");
     else if(is_closed())
       Serial.print("closed");
-    Serial.println(", idle");
+    Serial.print(", idle");
+    if(get_ajar_status())
+      Serial.println(", shut");
+    else
+      Serial.println(", ajar");
     return;
   }
   else if(current_state == ERROR) {
@@ -493,13 +515,16 @@ void print_status()
     Serial.print("<->");
 
   switch(current_state) {
-  case IDLE: Serial.println(", idle"); break;
-  case OPENING: Serial.println(", opening"); break;
-  case CLOSING: Serial.println(", closing"); break;
-  case WAIT: Serial.println(", waiting"); break;
-  default: Serial.println(", <undefined state>"); break;
+  case IDLE: Serial.print(", idle"); break;
+  case OPENING: Serial.print(", opening"); break;
+  case CLOSING: Serial.print(", closing"); break;
+  case WAIT: Serial.print(", waiting"); break;
+  default: Serial.print(", <undefined state>"); break;
   }
-  
+  if(get_ajar_status())
+    Serial.println(", shut");
+  else
+    Serial.println(", ajar");
 }
 
 //**********//
@@ -507,6 +532,7 @@ void print_status()
 void setup()
 {
   init_limits();
+  init_ajar();
   init_stepper();
   init_leds();
   init_heartbeat();
