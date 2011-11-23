@@ -21,9 +21,12 @@ byte next_led = 0;
 #define LIMIT_CLOSED_PIN 19 // A5: limit switch for close
 
 #define AJAR_PIN 14 // input pin for reed relais (door ajar/shut)
-#define SHUT 0
-#define AJAR 1
+#define SHUT 10
+#define AJAR 5
 byte ajar_last_state = SHUT;
+#define AJAR_LOW_PASS_TAU 200
+byte ajar_low_pass_counter = 0;
+byte ajar_low_pass_last_value = ajar_last_state;
 
 #define MANUAL_OPEN_PIN 12  // keys for manual open and close
 #define MANUAL_CLOSE_PIN 13 // 
@@ -82,16 +85,12 @@ boolean is_closed()
 
 //**********//
 
-#define AJAR_LOW_PASS_TAU 200
-byte ajar_low_pass_counter = 0;
-byte ajar_low_pass_last_value = ajar_last_state;
 byte get_ajar_status()
 {
-  b = ( (digitalRead(AJAR_PIN) == LOW)? SHUT : AJAR );
-  ajar_low_pass_counter = ( (b == ajar_low_pass_last_value)? ajar_low_pass_counter + 1 : 0 );
+  byte b = (digitalRead(AJAR_PIN) == LOW) ? SHUT : AJAR;
+  ajar_low_pass_counter = (b == ajar_low_pass_last_value) ? ajar_low_pass_counter+1 : 0;
   ajar_low_pass_last_value = b;
-  if (ajar_low_pass_counter >= AJAR_LOW_PASS_TAU)
-  {
+  if(ajar_low_pass_counter >= AJAR_LOW_PASS_TAU) {
     ajar_low_pass_counter = 0;
     return b;
   }
@@ -517,7 +516,7 @@ void start_close()
   start_step_timer();
 }
 
-void print_status()
+void print_status(byte as)
 {
   Serial.print("Status: ");
   if(is_opened())
@@ -534,7 +533,7 @@ void print_status()
   case WAIT: Serial.print(", waiting"); break;
   default: Serial.print(", <undefined state>"); break;
   }
-  if(get_ajar_status() == SHUT)
+  if(as == SHUT)
     Serial.println(", shut");
   else
     Serial.println(", ajar");
@@ -612,7 +611,7 @@ void loop()
         Serial.println("Error: Operation in progress");
     }
     else if (command == CMD_STATUS)
-      print_status();
+      print_status(get_ajar_status());
     else
       Serial.println("Error: unknown command");
   }
@@ -635,9 +634,8 @@ void loop()
     }
   }
   byte a = get_ajar_status();
-  if(a != ajar_last_state)
-  {
-    print_status();
+  if(a != ajar_last_state) {
+    print_status(a);
     ajar_last_state = a;
   }
 }
