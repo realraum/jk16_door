@@ -21,6 +21,8 @@ byte next_led = 0;
 #define LIMIT_CLOSED_PIN 19 // A5: limit switch for close
 
 #define AJAR_PIN 14 // input pin for reed relais (door ajar/shut)
+boolean ajar_last_state = false;
+boolean ajar_state_changed = false;
 
 #define MANUAL_OPEN_PIN 12  // keys for manual open and close
 #define MANUAL_CLOSE_PIN 13 // 
@@ -83,6 +85,7 @@ void init_ajar()
 {
   pinMode(AJAR_PIN, INPUT);      // set pin to input
   digitalWrite(AJAR_PIN, HIGH);  // turn on pullup resistors  
+  ajar_last_state = digitalRead(AJAR_PIN);
 }
 
 boolean get_ajar_status()  // shut = true, ajar = false
@@ -458,12 +461,19 @@ void init_heartbeat()
 // while running this gets called every ~10ms
 ISR(TIMER2_COMPA_vect)
 {
+  boolean a = get_ajar_status();
   heartbeat_cnt++;
-  if(heartbeat_cnt == HEARTBEAT_DURATION)
+  if(heartbeat_cnt == HEARTBEAT_DURATION) {
     heartbeat_off();
-  else if(heartbeat_cnt >= HEARTBEAT_DELAY) {
+    if(a != ajar_last_state) 
+      ajar_state_changed = true;
+    ajar_last_state = a;
+  } else if(heartbeat_cnt >= HEARTBEAT_DELAY) {
     heartbeat_on();
     heartbeat_cnt = 0;
+    if(a != ajar_last_state)
+      ajar_state_changed = true;
+    ajar_last_state = a;
   }
 }
 
@@ -611,7 +621,7 @@ void loop()
     Serial.println("close forced manually");
     start_close();
   }
-  if (current_state == IDLE) {
+  if(current_state == IDLE) {
     if(is_opened()) {
       leds_green();
       PORTD = LEDS_ON;
@@ -620,5 +630,9 @@ void loop()
       leds_red();
       PORTD = LEDS_ON;
     }
+  }
+  if(ajar_state_changed) {
+    ajar_state_changed = false;
+    print_status();
   }
 }
