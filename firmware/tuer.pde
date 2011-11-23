@@ -80,19 +80,16 @@ boolean is_closed()
 
 //**********//
 
+boolean get_ajar_status()  // shut = true, ajar = false
+{
+  return (digitalRead(AJAR_PIN) == LOW);
+}
+
 void init_ajar()
 {
   pinMode(AJAR_PIN, INPUT);      // set pin to input
   digitalWrite(AJAR_PIN, HIGH);  // turn on pullup resistors  
-  ajar_last_state = digitalRead(AJAR_PIN);
-}
-
-boolean get_ajar_status()  // shut = true, ajar = false
-{
-  if(digitalRead(AJAR_PIN))
-     return false;
-     
-  return true;
+  ajar_last_state = get_ajar_status();
 }
 
 //**********//
@@ -624,7 +621,9 @@ void loop()
     }
   }
   boolean a = get_ajar_status();
-  if(a != ajar_last_state)
+  if (a != ajar_last_state)
+  {
     print_status();
-  ajar_last_state = a;
+    ajar_last_state = a;
+  }
 }
