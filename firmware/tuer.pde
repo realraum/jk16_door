@@ -21,7 +21,9 @@ byte next_led = 0;
 #define LIMIT_CLOSED_PIN 19 // A5: limit switch for close
 
 #define AJAR_PIN 14 // input pin for reed relais (door ajar/shut)
-boolean ajar_last_state = false;
+#define SHUT 0
+#define AJAR 1
+byte ajar_last_state = SHUT;
 
 #define MANUAL_OPEN_PIN 12  // keys for manual open and close
 #define MANUAL_CLOSE_PIN 13 // 
@@ -80,9 +82,12 @@ boolean is_closed()
 
 //**********//
 
-boolean get_ajar_status()  // shut = true, ajar = false
+byte get_ajar_status()
 {
-  return (digitalRead(AJAR_PIN) == LOW);
+  if(digitalRead(AJAR_PIN) == LOW)
+    return SHUT;
+  
+  return AJAR;
 }
 
 void init_ajar()
@@ -387,7 +392,7 @@ ISR(TIMER1_COMPA_vect)
     else if(is_closed())
       Serial.print("closed");
     Serial.print(", idle");
-    if(get_ajar_status())
+    if(get_ajar_status() == SHUT)
       Serial.println(", shut");
     else
       Serial.println(", ajar");
@@ -520,7 +525,7 @@ void print_status()
   case WAIT: Serial.print(", waiting"); break;
   default: Serial.print(", <undefined state>"); break;
   }
-  if(get_ajar_status())
+  if(get_ajar_status() == SHUT)
     Serial.println(", shut");
   else
     Serial.println(", ajar");
@@ -620,8 +625,8 @@ void loop()
       PORTD = LEDS_ON;
     }
   }
-  boolean a = get_ajar_status();
-  if (a != ajar_last_state)
+  byte a = get_ajar_status();
+  if(a != ajar_last_state)
   {
     print_status();
     ajar_last_state = a;
