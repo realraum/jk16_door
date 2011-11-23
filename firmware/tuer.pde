@@ -462,18 +462,15 @@ void init_heartbeat()
 ISR(TIMER2_COMPA_vect)
 {
   boolean a = get_ajar_status();
+  if(a != ajar_last_state) 
+    ajar_state_changed = true;
+  ajar_last_state = a;
   heartbeat_cnt++;
-  if(heartbeat_cnt == HEARTBEAT_DURATION) {
+  if(heartbeat_cnt == HEARTBEAT_DURATION)
     heartbeat_off();
-    if(a != ajar_last_state) 
-      ajar_state_changed = true;
-    ajar_last_state = a;
-  } else if(heartbeat_cnt >= HEARTBEAT_DELAY) {
+  else if(heartbeat_cnt >= HEARTBEAT_DELAY) {
     heartbeat_on();
     heartbeat_cnt = 0;
-    if(a != ajar_last_state)
-      ajar_state_changed = true;
-    ajar_last_state = a;
   }
 }
 
