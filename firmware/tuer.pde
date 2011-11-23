@@ -82,12 +82,21 @@ boolean is_closed()
 
 //**********//
 
+#define AJAR_LOW_PASS_TAU 200
+byte ajar_low_pass_counter = 0;
+byte ajar_low_pass_last_value = ajar_last_state;
 byte get_ajar_status()
 {
-  if(digitalRead(AJAR_PIN) == LOW)
-    return SHUT;
-  
-  return AJAR;
+  b = ( (digitalRead(AJAR_PIN) == LOW)? SHUT : AJAR );
+  ajar_low_pass_counter = ( (b == ajar_low_pass_last_value)? ajar_low_pass_counter + 1 : 0 );
+  ajar_low_pass_last_value = b;
+  if (ajar_low_pass_counter >= AJAR_LOW_PASS_TAU)
+  {
+    ajar_low_pass_counter = 0;
+    return b;
+  }
+  else
+    return ajar_last_state;
 }
 
 void init_ajar()
