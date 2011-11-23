@@ -22,7 +22,6 @@ byte next_led = 0;
 
 #define AJAR_PIN 14 // input pin for reed relais (door ajar/shut)
 boolean ajar_last_state = false;
-boolean ajar_state_changed = false;
 
 #define MANUAL_OPEN_PIN 12  // keys for manual open and close
 #define MANUAL_CLOSE_PIN 13 // 
@@ -461,10 +460,6 @@ void init_heartbeat()
 // while running this gets called every ~10ms
 ISR(TIMER2_COMPA_vect)
 {
-  boolean a = get_ajar_status();
-  if(a != ajar_last_state) 
-    ajar_state_changed = true;
-  ajar_last_state = a;
   heartbeat_cnt++;
   if(heartbeat_cnt == HEARTBEAT_DURATION)
     heartbeat_off();
@@ -628,8 +623,8 @@ void loop()
       PORTD = LEDS_ON;
     }
   }
-  if(ajar_state_changed) {
-    ajar_state_changed = false;
+  boolean a = get_ajar_status();
+  if(a != ajar_last_state)
     print_status();
-  }
+  ajar_last_state = a;
 }
